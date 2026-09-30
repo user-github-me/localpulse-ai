@@ -2,7 +2,7 @@
 // build can bundle them (the Chrome Web Store doesn't allow loading WebAssembly from elsewhere).
 // The URLs come from the installed @mlc-ai/web-llm version. They point at a branch that can change,
 // and the files ship as code, so each one must match its SHA-256 in scripts/webllm-libs.sha256.
-// Run: corepack pnpm webllm-libs (build, zip and dev run it). After updating @mlc-ai/web-llm or the
+// Run: corepack pnpm webllm-libs (build and zip run it). After updating @mlc-ai/web-llm or the
 // model list, run `corepack pnpm webllm-libs --update-hashes` and review the change to the hashes.
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';

@@ -46,3 +46,18 @@ describe('selectRelevantSections', () => {
     expect(result.indexes[0]).toBe(0);
   });
 });
+
+describe('tokenize in languages without spaces', () => {
+  it('splits Chinese into words, so questions find the right section', () => {
+    const tokens = tokenize('您在AirTCP申请了密码重置');
+    expect(tokens.length).toBeGreaterThan(3);
+    expect(tokens).toContain('密码');
+    const chinese = [
+      '这篇文章介绍了公司的历史和团队。',
+      '密码重置：点击邮件里的链接，然后输入新密码。',
+      '联系我们：请发送邮件到客服邮箱。',
+    ];
+    const scores = bm25Scores(chinese, '怎么重置密码');
+    expect(scores.indexOf(Math.max(...scores))).toBe(1);
+  });
+});

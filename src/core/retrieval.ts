@@ -11,9 +11,27 @@ const STOP_WORDS = new Set(
   ).split(' '),
 );
 
+const wordSegmenter =
+  typeof Intl !== 'undefined' && 'Segmenter' in Intl
+    ? new Intl.Segmenter(undefined, { granularity: 'word' })
+    : undefined;
+
+/** Scripts where a single character is often a whole word. */
+const IDEOGRAPHIC = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+
+/**
+ * The words of a text, lowercased. The browser's word segmenter also splits Chinese, Japanese and
+ * Thai, which don't put spaces between words.
+ */
 export function tokenize(text: string): string[] {
-  return (text.toLowerCase().match(/[\p{L}\p{M}\p{N}]+/gu) ?? []).filter(
-    (token) => token.length > 1 && !STOP_WORDS.has(token),
+  const lower = text.toLowerCase();
+  const words = wordSegmenter
+    ? [...wordSegmenter.segment(lower)]
+        .filter((part) => part.isWordLike)
+        .map((part) => part.segment)
+    : (lower.match(/[\p{L}\p{M}\p{N}]+/gu) ?? []);
+  return words.filter(
+    (token) => (token.length > 1 || IDEOGRAPHIC.test(token)) && !STOP_WORDS.has(token),
   );
 }
 

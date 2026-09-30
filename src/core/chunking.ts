@@ -49,6 +49,42 @@ function splitSentences(text: string): string[] {
   return text.split(/(?<=[.!?])\s+/);
 }
 
+/**
+ * Splits a table or a fenced code block that is too big by lines, never inside a row or a line of
+ * code. Each part repeats what makes it readable alone: the table's header, or the code fences.
+ * Returns undefined for other text.
+ */
+function splitBlockLines(
+  piece: string,
+  maxTokens: number,
+  count: (text: string) => number,
+): string[] | undefined {
+  const lines = piece.split('\n');
+  const fenced = FENCE.test(lines[0] ?? '');
+  const table = lines.length > 2 && lines.every((line) => line.trim().startsWith('|'));
+  if (!fenced && !table) return undefined;
+  const head = fenced ? lines.slice(0, 1) : lines.slice(0, 2);
+  const closed = fenced && lines.length > 1 && FENCE.test(lines.at(-1) ?? '');
+  const tail = fenced ? [closed ? (lines.at(-1) as string) : '```'] : [];
+  const body = lines.slice(head.length, closed ? -1 : undefined);
+  const frame = count([...head, ...tail].join('\n'));
+  const parts: string[] = [];
+  let current: string[] = [];
+  let tokens = frame;
+  for (const line of body) {
+    const lineTokens = count(line) + 1;
+    if (current.length && tokens + lineTokens > maxTokens) {
+      parts.push([...head, ...current, ...tail].join('\n'));
+      current = [];
+      tokens = frame;
+    }
+    current.push(line);
+    tokens += lineTokens;
+  }
+  if (current.length) parts.push([...head, ...current, ...tail].join('\n'));
+  return parts;
+}
+
 function hardSplit(text: string, maxTokens: number, count: (text: string) => number): string[] {
   const parts: string[] = [];
   const approxChars = Math.max(1, Math.floor((text.length * maxTokens) / Math.max(1, count(text))));
@@ -70,7 +106,7 @@ function pieces(text: string, maxTokens: number, count: (text: string) => number
       level === 0
         ? splitParagraphs(piece)
         : level === 1
-          ? splitSentences(piece)
+          ? (splitBlockLines(piece, maxTokens, count) ?? splitSentences(piece))
           : hardSplit(piece, maxTokens, count);
     if (finer.length <= 1 && level < 2) {
       add(piece, level + 1);

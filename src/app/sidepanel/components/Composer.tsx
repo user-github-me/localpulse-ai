@@ -26,6 +26,7 @@ export function Composer() {
     >
       <div className="flex items-end gap-2 rounded-[12px] border border-line bg-paper py-1.5 pl-3 pr-1.5 focus-within:border-local">
         <textarea
+          dir="auto"
           rows={1}
           value={text}
           onChange={(event) => setText(event.target.value)}

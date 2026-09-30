@@ -20,6 +20,7 @@ export default defineConfig({
       'scripts/**',
       'package.json',
       'pnpm-lock.yaml',
+      '.nvmrc',
       'tsconfig.json',
       'wxt.config.ts',
       'README.md',
@@ -103,7 +104,7 @@ export default defineConfig({
     'build:publicAssets': (wxt, files) => {
       if (wxt.config.browser === 'firefox') return;
       if (!existsSync(WEBLLM_LIBS)) {
-        if (wxt.config.mode !== 'e2e') {
+        if (wxt.config.mode !== 'e2e' && wxt.config.command === 'build') {
           wxt.logger.warn(
             'local/webllm-libs is missing, so the in-browser models will not load. Run: corepack pnpm webllm-libs',
           );

@@ -66,9 +66,14 @@ export function pageBlock(page: PromptPage): string {
  * that is still arriving at the end of a streamed answer.
  */
 export function stripPageTags(answer: string): string {
-  return answer
-    .replace(/<\s*\/?\s*page\b[^>\n]*>\n?/gi, '')
-    .replace(/<\s*\/?\s*page\b[^>\n]*$/i, '');
+  return (
+    answer
+      // LocalPulse's own wrapper: lowercase, with quoted attributes (a title can contain ">").
+      .replace(/<page(?:\s+[a-z]+="[^"\n]*")+\s*>\n?/g, '')
+      .replace(/<\/page>\n?/g, '')
+      // Still arriving at the end of a streamed answer.
+      .replace(/<page(?:\s+[a-z]+="[^"\n]*")*(?:\s+[a-z]*(?:="[^"\n]*)?)?$/, '')
+  );
 }
 
 export function userMessage(page: PromptPage | undefined, instruction: string): string {

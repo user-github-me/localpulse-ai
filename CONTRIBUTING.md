@@ -5,9 +5,9 @@ request needs.
 
 ## Setup
 
-You need Node.js 24 (with nvm: `nvm install`); 22.22.2+ and 26+ also work, but not 25. pnpm comes
-through Corepack: Node 25 and newer don't include it, so run `npm install -g corepack` there. The
-first `corepack pnpm` command asks to download pnpm; answer Y.
+You need Node.js 24.15 or newer on the 24 line (with nvm: `nvm install`); 22.22.2+ on the 22 line
+and 26+ also work, but not 23 or 25. pnpm comes through Corepack: Node 26 and newer don't include
+it, so run `npm install -g corepack` there. The first `corepack pnpm` command downloads pnpm.
 
 ```sh
 corepack pnpm install
@@ -16,7 +16,9 @@ corepack pnpm dev:firefox
 ```
 
 `corepack pnpm dev` starts Chrome with a new, empty profile each time, so Chrome's built-in model
-isn't there. To try on-device AI, build and load the extension in your everyday Chrome.
+isn't there, and the in-browser models don't run under `dev` (their worker would load from the dev
+server, which Chrome doesn't allow). To try on-device AI, run `corepack pnpm build` and load
+`local/build/chrome-mv3` in your everyday Chrome.
 
 | Command                                 | What it does                                                  |
 | --------------------------------------- | ------------------------------------------------------------- |
@@ -105,7 +107,8 @@ test to `tests/unit/extractor.test.ts`.
 ## Pull requests
 
 - Run `corepack pnpm format`, then `corepack pnpm compile && corepack pnpm lint && corepack pnpm test`,
-  before pushing. CI also checks the formatting and both builds.
+  before pushing. CI also checks the formatting, runs both builds, lints the Firefox build with
+  `web-ext lint` and runs the browser tests (`corepack pnpm test:e2e`).
 - Describe what changed and how you tested it, with a screenshot for UI changes.
 - Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/), for example
   `feat: add Mistral preset`.

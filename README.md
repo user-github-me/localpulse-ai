@@ -54,8 +54,9 @@ Every answer says where it was written: a green light means on this device, ambe
 | Continue in ChatGPT / Claude / …         | Only what you paste or send there yourself.                           |
 
 Settings add a Local-only mode and a list of sites that never go to the cloud. Emails, phone
-numbers and card numbers are hidden before a cloud request. Follow-up questions only take earlier
-answers along to a cloud provider when their pages may go there too. Full details are in
+numbers and card numbers in the page are hidden before it goes to a cloud provider (you can turn
+this off); what you type in a question is sent as you wrote it. Follow-up questions only take
+earlier answers along to a cloud provider when their pages may go there too. Full details are in
 [PRIVACY.md](PRIVACY.md).
 
 ## Screenshots
@@ -68,27 +69,30 @@ answers along to a cloud provider when their pages may go there too. Full detail
 
 ## Install
 
-LocalPulse needs Chrome, Edge, Brave, Opera or Vivaldi 138 or newer, or Firefox 140 or newer.
+LocalPulse needs Chrome or Edge 138 or newer, Opera 135 or newer, Brave or Vivaldi based on
+Chromium 138 or newer, or Firefox 140 or newer.
 
 ### From a release (no build needed)
 
-1. Download `localpulse-ai-<version>-chrome.zip` from the [Releases page](https://github.com/user-github-me/localpulse-ai/releases) and
-   unzip it.
+1. Download `localpulse-ai-<version>-chrome.zip` (for Firefox, `localpulse-ai-<version>-firefox.zip`)
+   from the [Releases page](https://github.com/user-github-me/localpulse-ai/releases) and unzip it.
 2. Open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and pick the
    unzipped folder (the one with `manifest.json` in it).
    - For Firefox, open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on** and
-     pick `manifest.json` in the unzipped `localpulse-ai-<version>-firefox.zip`.
+     pick `manifest.json` in the unzipped Firefox ZIP. Firefox removes temporary add-ons when it
+     restarts, so load it again after a restart.
 
 ### From source
 
-1. Install [Node.js](https://nodejs.org) 24 (with nvm: `nvm install`, which reads `.nvmrc`).
-   Node 22.22.2+ and 26+ also work; Node 25 isn't supported. Node 25 and newer don't include
-   Corepack, so run `npm install -g corepack` first.
+1. Install [Node.js](https://nodejs.org) 24.15 or newer on the 24 line (with nvm: `nvm install`,
+   which reads `.nvmrc`). Node 22.22.2 or newer on the 22 line, and 26 or newer, also work; 23 and
+   25 aren't supported. Node 26 and newer don't include Corepack: run `npm install -g corepack`
+   first (if you installed pnpm with npm, run `npm uninstall -g pnpm` before that).
 2. Build the extension:
    ```sh
    git clone https://github.com/user-github-me/localpulse-ai.git
    cd localpulse-ai
-   corepack pnpm install      # the first run asks to download pnpm: answer Y
+   corepack pnpm install      # the first run downloads pnpm itself
    corepack pnpm build        # Chrome, Edge, Brave, Opera, Vivaldi
    corepack pnpm build:firefox
    ```
@@ -98,16 +102,16 @@ LocalPulse needs Chrome, Edge, Brave, Opera or Vivaldi 138 or newer, or Firefox 
    Don't pick the project folder itself: it holds the source code, and the build creates the
    extension, with its `manifest.json`, in `local/build/chrome-mv3`. (Picking the project folder
    gives "Manifest file is missing or unreadable".) Pick `chrome-mv3` exactly: `chrome-mv3-dev` only
-   works while `corepack pnpm dev` is running, and `chrome-mv3-e2e` is a test build with extra
-   permissions.
+   works while `corepack pnpm dev` is running (the same goes for `firefox-mv3-dev`), and
+   `chrome-mv3-e2e` is a test build with extra permissions.
    - For Firefox, open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on** and
      pick `local/build/firefox-mv3/manifest.json`. Firefox removes temporary add-ons when it
      restarts; after a rebuild, click **Reload** on the add-on there.
 5. After changing the code, run `corepack pnpm build` again and click the reload button on the
    extension's card. Or run `corepack pnpm dev`: it opens a separate Chrome window with the
    extension and reloads it on every change. That window starts with a new, empty profile, so
-   Chrome's built-in model isn't in it; to try on-device AI, load the extension in your everyday
-   Chrome.
+   Chrome's built-in model isn't in it, and the in-browser models don't run under `dev`; to try
+   on-device AI, build and load the extension in your everyday Chrome.
 
 ## Usage
 
@@ -149,16 +153,16 @@ content script runs on pages until you ask about them.
 
 ## Permissions
 
-| Permission                            | Why                                                                                                                                                             |
-| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sidePanel`                           | Shows LocalPulse in the browser's side panel.                                                                                                                   |
-| `activeTab`                           | Reads the tab where you clicked the LocalPulse icon, only then.                                                                                                 |
-| `scripting`                           | Runs the page reader in that tab when you ask a question.                                                                                                       |
-| `storage`, `unlimitedStorage`         | Keeps settings, history and downloaded models on this computer.                                                                                                 |
-| `contextMenus`                        | Adds LocalPulse to the right-click menu for selected text.                                                                                                      |
-| `declarativeNetRequestWithHostAccess` | Lets Ollama accept requests from LocalPulse, only for servers on your computer you connected.                                                                   |
-| Optional: access to sites             | Asked when you choose **Allow on all sites**, add other tabs to a question, connect an AI app on your computer such as Ollama, or read a PDF from another site. |
-| Optional: `tabs`                      | Asked when you add other tabs to a question, to list their titles.                                                                                              |
+| Permission                            | Why                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sidePanel`                           | Shows LocalPulse in the browser's side panel.                                                                                                                                                                                                                                                           |
+| `activeTab`                           | Reads the tab where you clicked the LocalPulse icon, only then.                                                                                                                                                                                                                                         |
+| `scripting`                           | Runs the page reader in the tab you ask about, and puts proofread or rewritten text back when you click **Replace selection**.                                                                                                                                                                          |
+| `storage`, `unlimitedStorage`         | Keeps settings, history and downloaded models on this computer.                                                                                                                                                                                                                                         |
+| `contextMenus`                        | Adds LocalPulse to the right-click menu for selected text.                                                                                                                                                                                                                                              |
+| `declarativeNetRequestWithHostAccess` | Lets Ollama accept requests from LocalPulse, only for servers on your computer you connected.                                                                                                                                                                                                           |
+| Optional: access to sites             | Asked when you choose **Allow on all sites**, add other tabs to a question (their sites), connect an AI app on your computer such as Ollama (its local address), or read a PDF open in a tab (its site). When LocalPulse can't read the tab you're on, Chrome also shows its own request for that site. |
+| Optional: `tabs`                      | Asked when you add other tabs to a question, to list their titles and addresses.                                                                                                                                                                                                                        |
 
 Installing LocalPulse shows no permission warnings; the optional ones are asked for when a feature
 needs them.

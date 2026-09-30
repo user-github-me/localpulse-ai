@@ -71,6 +71,12 @@ export class FakeTranslatorProvider extends FakeProvider {
   detected?: string;
   /** The translator fails to start, e.g. its language pack needs a download. */
   failToStart = false;
+  /** Languages its chat model writes; all of them when unset. */
+  writes?: string[];
+
+  writesLanguage(language: string): boolean {
+    return this.writes === undefined || this.writes.includes(language);
+  }
 
   async detectLanguage(): Promise<string | undefined> {
     return this.detected;

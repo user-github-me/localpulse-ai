@@ -56,8 +56,8 @@ test('text selected in a field gets Proofread by default, keeps its line breaks 
   await expect(panel.getByRole('button', { name: 'Rewrite' })).toBeVisible();
   await panel.getByRole('button', { name: 'Proofread' }).click();
 
-  // "Thanks," and "Sam" stay on separate lines, as they will be in the field.
-  await expect(panel.locator('.answer p', { hasText: 'Thanks,' }).locator('br')).toHaveCount(1);
+  // Shown exactly as Replace will put it back: "Thanks," and "Sam" on separate lines.
+  await expect(panel.locator('p.answer')).toHaveText(FIXED, { useInnerText: true });
   expect(requests[0]?.body.messages.at(-1)?.content).toContain(DRAFT);
   await panel.getByRole('button', { name: 'Replace selection' }).click();
   await expect(panel.getByText('Replaced the selected text on the page.')).toBeVisible();
@@ -98,4 +98,35 @@ test('right-click Proofread on a field uses its exact text and offers Replace', 
   );
   await expect(panel.getByRole('button', { name: 'Replace selection' })).toBeVisible();
   expect(requests[0]?.body.messages.at(-1)?.content).toContain(DRAFT);
+});
+
+test('Replace refuses when the field no longer holds the text the answer was written from', async ({
+  context,
+  extensionId,
+}) => {
+  await mockChatApi(context, MOCK_LOCAL_API, () => FIXED);
+  await seedStorage(context, extensionId, {
+    settings: {
+      endpoints: [endpoint('ep:local', MOCK_LOCAL_API, 'Local Mock')],
+      onboardingComplete: true,
+    },
+  });
+  const draft = await openDraft(context);
+  const panel = await openPanel(context, extensionId, draft);
+  await expect(panel.getByText(/Your selection/)).toBeVisible();
+  await panel.getByRole('button', { name: 'Proofread' }).click();
+  await expect(panel.getByRole('button', { name: 'Replace selection' })).toBeVisible();
+
+  // The user edits the draft and selects something else before clicking Replace.
+  await draft.evaluate(() => {
+    const field = document.getElementById('message') as HTMLTextAreaElement;
+    field.value = 'A completely different message.';
+    field.focus();
+    field.setSelectionRange(0, field.value.length);
+  });
+  await panel.getByRole('button', { name: 'Replace selection' }).click();
+  await expect(
+    panel.getByText(/has changed since this answer, so nothing was replaced/),
+  ).toBeVisible();
+  expect(await draft.locator('#message').inputValue()).toBe('A completely different message.');
 });

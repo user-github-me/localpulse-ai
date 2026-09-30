@@ -1,4 +1,5 @@
-import { isAbortError } from '@/lib/errors';
+import { i18n } from '#i18n';
+import { isAbortError, ProviderError } from '@/lib/errors';
 import { estimateTokens, guessLanguage, hostnameOf, truncateToTokens } from '@/lib/text';
 import type { ChatMessage, GenerateOptions, Provider } from '@/providers/types';
 import { chunkText } from './chunking';
@@ -88,13 +89,13 @@ export async function runTurn(
   if (input.recipe.id === 'translate' && provider.translate) {
     const from = await sourceLanguage(provider, page);
     const to = languageCode(language);
+    const chats = await canChat(provider);
     const availability =
       from && from !== to ? await provider.translatorAvailability?.(from, to) : undefined;
     // A language pack that isn't on this computer yet takes a while to download: a chat model
-    // translates instead when there is one. Without one, the pack is downloaded.
-    const downloading = availability === 'downloadable' && !(await canChat(provider));
+    // that writes the language translates instead. Without one, the pack is downloaded.
+    const downloading = availability === 'downloadable' && !(chats && writes(provider, to));
     if (from && (availability === 'available' || downloading)) {
-      if (downloading) callbacks.onStatus?.({ kind: 'downloading-translator' });
       let wrote = false;
       try {
         return await translateInParts(
@@ -105,19 +106,24 @@ export async function runTurn(
           {
             ...callbacks,
             onText: (chunk) => {
-              if (!wrote && downloading) callbacks.onStatus?.(undefined);
               wrote = true;
               callbacks.onText(chunk);
             },
           },
-          signal,
+          { signal, downloading, budgetScale: input.budgetScale },
         );
       } catch (error) {
         // The translator can't start, e.g. its language pack needs a download that the browser
-        // only allows right after a click. The model translates instead.
-        if (wrote || signal?.aborted || isAbortError(error)) throw error;
+        // only allows right after a click. A chat model translates instead, if there is one.
+        if (wrote || !chats || signal?.aborted || isAbortError(error)) throw error;
         callbacks.onStatus?.(undefined);
       }
+    } else if (!chats) {
+      // Only the translator is here, and it can't take this text.
+      throw new ProviderError(
+        'unsupported',
+        from === to ? i18n.t('turn.alreadyInLanguage') : i18n.t('turn.unknownLanguage'),
+      );
     }
   }
 
@@ -233,7 +239,9 @@ async function summarizeWithSummarizer(
   const summary = input.recipe.summary as NonNullable<Recipe['summary']>;
   const summarize = provider.summarize?.bind(provider);
   if (!summarize) throw new Error('Provider has no summarizer');
-  const budget = Math.floor(((await provider.summarizeBudget?.()) ?? 3000) * 0.8);
+  const budget = Math.floor(
+    ((await provider.summarizeBudget?.()) ?? 3000) * 0.8 * (input.budgetScale ?? 1),
+  );
   const context = `From the page "${page.title}" on ${hostnameOf(page.url) ?? 'the web'}.`;
 
   let text = page.text;
@@ -272,16 +280,34 @@ async function translateInParts(
   from: string,
   to: string,
   callbacks: TurnCallbacks,
-  signal?: AbortSignal,
+  {
+    signal,
+    downloading = false,
+    budgetScale = 1,
+  }: { signal?: AbortSignal; downloading?: boolean; budgetScale?: number },
 ): Promise<TurnResult> {
   const translate = provider.translate?.bind(provider);
   if (!translate) throw new Error('Provider has no translator');
-  const chunks = chunkText(page.text, 1500);
+  const chunks = chunkText(page.text, Math.max(200, Math.floor(1500 * budgetScale)));
+  const partStatus = (index: number): TurnStatus | undefined =>
+    chunks.length > 1 ? { kind: 'part', part: index + 1, total: chunks.length } : undefined;
+  // While the language pack downloads, say so until the first words arrive.
+  let waiting = downloading;
+  callbacks.onStatus?.(waiting ? { kind: 'downloading-translator' } : partStatus(0));
   for (const [index, chunk] of chunks.entries()) {
-    if (chunks.length > 1)
-      callbacks.onStatus?.({ kind: 'part', part: index + 1, total: chunks.length });
-    if (index > 0) callbacks.onText('\n\n');
-    await pipe(translate(chunk, from, to, signal), callbacks);
+    if (index > 0) {
+      callbacks.onStatus?.(partStatus(index));
+      callbacks.onText('\n\n');
+    }
+    await pipe(translate(chunk, from, to, signal), {
+      onText: (text) => {
+        if (waiting) {
+          waiting = false;
+          callbacks.onStatus?.(partStatus(index));
+        }
+        callbacks.onText(text);
+      },
+    });
   }
   callbacks.onStatus?.(undefined);
   return { strategy: 'translator', partsUsed: chunks.length, partsTotal: chunks.length };
@@ -300,6 +326,11 @@ async function sourceLanguage(provider: Provider, page: PromptPage): Promise<str
 
 async function canChat(provider: Provider): Promise<boolean> {
   return (await provider.state('chat')).kind === 'ready';
+}
+
+/** Whether the provider's chat model writes this language; assumed when it can't tell. */
+function writes(provider: Provider, language: string): boolean {
+  return provider.writesLanguage?.(language) ?? true;
 }
 
 /** "zh-TW" → "zh-Hant", "en-US" → "en": the codes the Translator API expects. */

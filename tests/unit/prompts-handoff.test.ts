@@ -16,6 +16,11 @@ describe('prompts', () => {
     expect(stripPageTags('Here: <page note="x">Hello</page> done')).toBe('Here: Hello done');
     expect(stripPageTags('Still streaming <page title="Ma')).toBe('Still streaming ');
     expect(stripPageTags('Page 3 of the <b>report</b>.')).toBe('Page 3 of the <b>report</b>.');
+    // Only LocalPulse's own wrapper: other tags that look alike stay, and a title may hold ">".
+    expect(stripPageTags('Use <Page title="x"> or <page-header> in JSX.')).toBe(
+      'Use <Page title="x"> or <page-header> in JSX.',
+    );
+    expect(stripPageTags('<page title="A > B" url="https://m.test/">\nHi.\n</page>')).toBe('Hi.\n');
     expect(systemPrompt('en')).toContain('Never repeat the <page> tags');
   });
 

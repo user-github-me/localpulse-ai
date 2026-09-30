@@ -40,6 +40,28 @@ function TableWithExport({ children }: { children?: React.ReactNode }) {
 }
 
 const components: Components = {
+  // Each block takes the direction of its own text, so Arabic or Hebrew reads right to left.
+  p: ({ children }) => <p dir="auto">{children}</p>,
+  li: ({ children, className }) => (
+    <li dir="auto" className={className}>
+      {children}
+    </li>
+  ),
+  blockquote: ({ children }) => <blockquote dir="auto">{children}</blockquote>,
+  h1: ({ children }) => <h1 dir="auto">{children}</h1>,
+  h2: ({ children }) => <h2 dir="auto">{children}</h2>,
+  h3: ({ children }) => <h3 dir="auto">{children}</h3>,
+  h4: ({ children }) => <h4 dir="auto">{children}</h4>,
+  td: ({ children, style }) => (
+    <td dir="auto" style={style}>
+      {children}
+    </td>
+  ),
+  th: ({ children, style }) => (
+    <th dir="auto" style={style}>
+      {children}
+    </th>
+  ),
   table: ({ children }) => <TableWithExport>{children}</TableWithExport>,
   // Links open in a new tab and show their real domain, so an injected link can't hide where it goes.
   a: ({ href, children }) => {
@@ -81,12 +103,23 @@ interface MarkdownNode {
  * Raw HTML from the model is shown as text, never rendered. Dropping it isn't safe either: an HTML
  * block runs to the next blank line, so a stray tag would hide the answer text after it.
  */
+/** Nodes that hold paragraphs rather than text, where an HTML block can appear. */
+const FLOW_PARENTS = new Set(['root', 'blockquote', 'listItem', 'footnoteDefinition']);
+
 function remarkHtmlAsText() {
   const visit = (node: MarkdownNode) => {
-    if (node.type === 'html') {
-      node.type = /^<br\s*\/?>$/i.test(node.value?.trim() ?? '') ? 'break' : 'text';
-    }
-    node.children?.forEach(visit);
+    if (!node.children) return;
+    node.children = node.children.flatMap((child) => {
+      if (child.type !== 'html') return [child];
+      const parts: MarkdownNode[] = (child.value ?? '')
+        .split(/<br\s*\/?>/i)
+        .flatMap((part, index) => [
+          ...(index > 0 ? [{ type: 'break' }] : []),
+          ...(part ? [{ type: 'text', value: part }] : []),
+        ]);
+      return FLOW_PARENTS.has(node.type) ? [{ type: 'paragraph', children: parts }] : parts;
+    });
+    node.children.forEach(visit);
   };
   return visit;
 }

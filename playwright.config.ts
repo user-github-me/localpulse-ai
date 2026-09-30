@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 
-// End-to-end tests load the built extension (pnpm build:e2e) into Chromium.
+// End-to-end tests load the built extension (corepack pnpm build:e2e) into Chromium.
 export default defineConfig({
   testDir: 'tests/e2e',
   outputDir: 'local/test-results',

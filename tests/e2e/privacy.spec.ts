@@ -112,3 +112,34 @@ test('follow-up questions to the cloud leave out answers about never-send sites'
   expect(sent).not.toContain('balance');
   expect(sent).toContain('What do tomatoes need?');
 });
+
+test('Local-only mode switched on while the consent dialog is open stops the send', async ({
+  context,
+  extensionId,
+  article,
+}) => {
+  const requests = await mockChatApi(context, MOCK_API, () => 'cloud answer');
+  await seedStorage(context, extensionId, {
+    settings: {
+      endpoints: [endpoint('ep:mock', MOCK_API, 'Mock Cloud')],
+      onboardingComplete: true,
+    },
+    apiKeys: { 'ep:mock': 'test-key' },
+  });
+  const panel = await openPanel(context, extensionId, article);
+  await panel.getByRole('button', { name: 'Summarize' }).click();
+  const consent = panel.getByRole('dialog', { name: /Send to Mock Cloud/ });
+  await expect(consent).toBeVisible();
+
+  // Meanwhile, in Settings, the user turns on Local-only mode.
+  await seedStorage(context, extensionId, {
+    settings: {
+      endpoints: [endpoint('ep:mock', MOCK_API, 'Mock Cloud')],
+      onboardingComplete: true,
+      localOnly: true,
+    },
+  });
+  await consent.getByRole('button', { name: 'Send this time' }).click();
+  await expect(panel.getByText(/Cloud providers are now off for this page/)).toBeVisible();
+  expect(requests).toHaveLength(0);
+});

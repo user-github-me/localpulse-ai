@@ -35,6 +35,16 @@ describe('Markdown', () => {
     expect(kept).toMatch(/Thanks,<br\/>\s*Sam/);
   });
 
+  it('shows a <br> that starts a block as a line break, not as a tag', () => {
+    const html = render('<br>\nSecond line');
+    expect(html).not.toContain('&lt;br');
+    expect(html).toContain('Second line');
+  });
+
+  it('lets each block take the direction of its own text, for Arabic or Hebrew', () => {
+    expect(render('مرحبا بالعالم')).toContain('<p dir="auto">');
+  });
+
   it('turns a plain <br> into a line break', () => {
     expect(render('one<br>two')).toMatch(/one<br\/>\s*two/);
   });

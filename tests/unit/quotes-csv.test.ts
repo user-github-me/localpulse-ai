@@ -29,10 +29,18 @@ describe('quotes', () => {
   });
 
   it('ignores typographic differences when matching', () => {
-    expect(normalizeForMatch('It’s  a “test” — *really*')).toBe(`it's a "test" - really`);
+    expect(normalizeForMatch('It’s  a “test” — *really*')).toBe('its a test really');
     expect(
       checkQuotes('"gives pages direct,  modern access to the graphics card"', page)[0]?.found,
     ).toBe(true);
+  });
+});
+
+describe('quote pairs', () => {
+  it('never takes the text between two quotes for a quote', () => {
+    const answer =
+      'It says "Yes," and then, about compute shaders and graphics cards, "they run massively parallel work".';
+    expect(extractQuotes(answer)).toEqual(['they run massively parallel work']);
   });
 });
 
@@ -43,6 +51,12 @@ describe('quotes across languages', () => {
     const answer =
       'It says "You received this email because you requested a password reset on AirTCP".';
     expect(checkQuotes(answer, email)).toEqual([]);
+  });
+
+  it('reads 「」 quotes and ignores full-width punctuation differences', () => {
+    expect(checkQuotes('它写着「您收到此邮件,是因为您在AirTCP申请了密码重置」。', email)).toEqual([
+      { text: '您收到此邮件,是因为您在AirTCP申请了密码重置', found: true },
+    ]);
   });
 
   it('checks quotes in Chinese, which has no spaces between words', () => {

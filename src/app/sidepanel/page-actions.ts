@@ -27,23 +27,39 @@ function findAndSelect(quote: string): boolean {
   return false;
 }
 
-function replaceSelection(text: string): boolean {
+function replaceSelection(
+  text: string,
+  expectedText: string,
+  expectedUrl: string,
+): 'replaced' | 'changed' | 'failed' {
+  const same = (a: string, b: string) =>
+    a.replace(/\s+/g, ' ').trim() === b.replace(/\s+/g, ' ').trim();
+  // Only on the page the answer was written for, and only over the text it was written from.
+  if (location.href.split('#')[0] !== expectedUrl.split('#')[0]) return 'changed';
+  // Keep the spaces and line breaks around the selection, so lines and paragraphs don't merge.
+  const fitted = (selected: string) =>
+    (/^\s*/.exec(selected)?.[0] ?? '') + text.trim() + (/\s*$/.exec(selected)?.[0] ?? '');
   const active = document.activeElement as
     HTMLInputElement | HTMLTextAreaElement | HTMLElement | null;
   if (active && (active.tagName === 'TEXTAREA' || active.tagName === 'INPUT')) {
     const field = active as HTMLInputElement | HTMLTextAreaElement;
     const { selectionStart, selectionEnd } = field;
     if (selectionStart === null || selectionEnd === null || selectionStart === selectionEnd)
-      return false;
-    field.setRangeText(text, selectionStart, selectionEnd, 'select');
+      return 'failed';
+    const selected = field.value.slice(selectionStart, selectionEnd);
+    if (!same(selected, expectedText)) return 'changed';
+    field.setRangeText(fitted(selected), selectionStart, selectionEnd, 'select');
     field.dispatchEvent(new Event('input', { bubbles: true }));
-    return true;
+    return 'replaced';
   }
-  if (active?.isContentEditable && !window.getSelection()?.isCollapsed) {
+  const selection = window.getSelection();
+  if (active?.isContentEditable && selection && !selection.isCollapsed) {
+    const selected = selection.toString();
+    if (!same(selected, expectedText)) return 'changed';
     // execCommand keeps the page's undo history and editor frameworks in sync.
-    return document.execCommand('insertText', false, text);
+    return document.execCommand('insertText', false, fitted(selected)) ? 'replaced' : 'failed';
   }
-  return false;
+  return 'failed';
 }
 
 /** Scrolls to a quote in the page and selects it, so the user can see it in context. */
@@ -60,16 +76,23 @@ export async function showQuoteInPage(tabId: number, quote: string): Promise<boo
   }
 }
 
-/** Puts rewritten text back in place of the selection in the page's text field. */
-export async function replaceSelectionInPage(tabId: number, text: string): Promise<boolean> {
+/**
+ * Puts rewritten text back in place of the selection in the page's text field. It refuses
+ * ("changed") when the tab shows another page or the field holds a different selection now.
+ */
+export async function replaceSelectionInPage(
+  tabId: number,
+  text: string,
+  original: { text: string; url: string },
+): Promise<'replaced' | 'changed' | 'failed'> {
   try {
     const [result] = await browser.scripting.executeScript({
       target: { tabId },
       func: replaceSelection,
-      args: [text],
+      args: [text, original.text, original.url],
     });
-    return Boolean(result?.result);
+    return result?.result ?? 'failed';
   } catch {
-    return false;
+    return 'failed';
   }
 }

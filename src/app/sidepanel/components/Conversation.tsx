@@ -69,7 +69,7 @@ function EmptyState() {
 function Question({ item }: { item: ChatItem }) {
   return (
     <div className="mt-6 first:mt-0">
-      <p className="whitespace-pre-wrap text-[0.9rem] font-semibold leading-snug">
+      <p dir="auto" className="whitespace-pre-wrap text-[0.9rem] font-semibold leading-snug">
         {item.actionLabel ?? item.text}
       </p>
       {item.context && (
@@ -133,14 +133,30 @@ function strategyNote(item: ChatItem): string | undefined {
 }
 
 /** Writing tools: put a rewrite back into the page's text field. */
-function ReplaceButton({ tabId, text }: { tabId: number; text: string }) {
+function ReplaceButton({
+  tabId,
+  text,
+  original,
+}: {
+  tabId: number;
+  text: string;
+  original: { text: string; url: string };
+}) {
   const showToast = usePanel((state) => state.showToast);
   return (
     <button
       type="button"
       onClick={async () => {
-        const replaced = await replaceSelectionInPage(tabId, text.trim());
-        showToast(replaced ? t('conversation.replaced') : t('conversation.replaceFailed'));
+        const result = await replaceSelectionInPage(tabId, text, original);
+        // The field and its selection changed: read the tab again so the panel shows that.
+        if (result === 'replaced') void usePanel.getState().refreshTab(tabId);
+        showToast(
+          result === 'replaced'
+            ? t('conversation.replaced')
+            : result === 'changed'
+              ? t('conversation.replaceChanged')
+              : t('conversation.replaceFailed'),
+        );
       }}
       className="inline-flex h-7 items-center gap-1 rounded-md px-2 text-[0.76rem] font-medium text-muted hover:bg-line/50 hover:text-ink"
     >
@@ -165,7 +181,14 @@ function Answer({ item }: { item: ChatItem }) {
         </p>
       )}
       {item.text ? (
-        <Markdown text={stripPageTags(item.text)} lineBreaks={item.lineBreaks} />
+        item.context?.editableTabId !== undefined ? (
+          // Text that can replace the selection in a field: shown exactly as Replace inserts it.
+          <p dir="auto" className="answer whitespace-pre-wrap">
+            {stripPageTags(item.text)}
+          </p>
+        ) : (
+          <Markdown text={stripPageTags(item.text)} lineBreaks={item.lineBreaks} />
+        )
       ) : (
         streaming && (
           <p className="text-sm text-muted">{item.status ?? t('conversation.thinking')}</p>
@@ -212,11 +235,22 @@ function Answer({ item }: { item: ChatItem }) {
             >
               <RotateCcw className="h-3.5 w-3.5" />
             </IconButton>
-            {item.state === 'done' && item.text && item.context?.editableTabId !== undefined && (
-              <ReplaceButton tabId={item.context.editableTabId} text={item.text} />
-            )}
+            {item.state === 'done' &&
+              item.text &&
+              item.context?.editableTabId !== undefined &&
+              item.context.editableText !== undefined && (
+                <ReplaceButton
+                  tabId={item.context.editableTabId}
+                  text={item.text}
+                  original={{ text: item.context.editableText, url: item.context.url }}
+                />
+              )}
             {item.instruction && (
-              <HandoffMenu instruction={item.instruction} contextUrl={item.context?.url} />
+              <HandoffMenu
+                instruction={item.instruction}
+                contextUrl={item.context?.url}
+                selection={item.selection}
+              />
             )}
           </div>
         )}

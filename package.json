@@ -1,7 +1,7 @@
 {
   "name": "localpulse-ai",
   "description": "Privacy-first, open-source AI copilot in the browser side panel. On-device AI first; no servers, no tracking.",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -10,7 +10,7 @@
     "node": "^22.22.2 || ^24.15.0 || >=26"
   },
   "scripts": {
-    "dev": "node scripts/fetch-webllm-libs.mjs && wxt",
+    "dev": "wxt",
     "dev:firefox": "wxt -b firefox --mv3",
     "build": "node scripts/fetch-webllm-libs.mjs && wxt build",
     "build:firefox": "wxt build -b firefox --mv3",

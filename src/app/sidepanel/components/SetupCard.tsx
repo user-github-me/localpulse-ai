@@ -92,6 +92,7 @@ export function SetupCard() {
           <HandoffButtons
             instruction={setup.pending.instruction}
             contextUrl={setup.pending.contextUrl}
+            selection={setup.pending.selection}
           />
         </div>
       </div>

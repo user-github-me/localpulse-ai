@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { browser } from '#imports';
 import { conversationHistory, sourceKey, UNKNOWN_SOURCE } from '@/core/conversation';
-import { redactPage } from '@/core/privacy';
+import { decodeAddress, isNeverCloudSite, Redactor, redactPage } from '@/core/privacy';
 import { checkQuotes, type CheckedQuote } from '@/core/quotes';
 import { stripPageTags, type PromptPage } from '@/core/prompts';
 import { fillRecipePrompt, questionRecipe, recipeById, type Recipe } from '@/core/recipes';
@@ -34,6 +34,8 @@ export interface ItemContext {
   source: 'page' | 'selection';
   /** The selection was in a text field of this tab, so a rewrite can replace it. */
   editableTabId?: number;
+  /** That selection's exact text: Replace only overwrites the same text, on the same page. */
+  editableText?: string;
   /** Set when the content came from several tabs. */
   tabCount?: number;
 }
@@ -62,8 +64,12 @@ export interface ChatItem {
   redactions?: number;
   /** Quotes in the answer, checked against the page (core/quotes.ts). */
   quotes?: CheckedQuote[];
-  /** The provider that wrote an answer. */
-  providerId?: string;
+  /** The provider that wrote an answer, and its server (core/conversation.ts, providerKey). */
+  providerKey?: string;
+  /** Text chosen outside the panel for this request, so Try again uses it too. Not saved. */
+  selection?: SelectionSource;
+  /** The tab that selection came from. */
+  selectionTabId?: number;
   /** Where an answer's content came from, including earlier turns (core/conversation.ts). */
   sources?: string[];
   /** Earlier turns not sent with this question because they may not go to its provider. */
@@ -82,7 +88,10 @@ export interface SelectionSource {
 
 export interface RunOptions {
   selection?: SelectionSource;
-  /** The tab to read instead of the active one. */
+  /**
+   * The tab an action started from (context menu, shortcut): it's read even when a file is open
+   * in the panel.
+   */
   tabId?: number;
 }
 
@@ -112,7 +121,14 @@ export interface ConsentPrompt {
 
 export interface SetupInfo {
   /** The request that couldn't run, so it can be handed off or retried after setup. */
-  pending: { recipeId: string; label: string; instruction: string; contextUrl?: string };
+  pending: {
+    recipeId: string;
+    label: string;
+    instruction: string;
+    contextUrl?: string;
+    selection?: SelectionSource;
+    tabId?: number;
+  };
   downloadable?: { id: string; label: string };
   cloudBlocked: boolean;
   /** Why each provider isn't ready, for the setup card. */
@@ -177,6 +193,10 @@ let abortController: AbortController | undefined;
 let running = false;
 /** An action from the context menu or a shortcut that arrived during another request. */
 let queued: PendingAction | undefined;
+/** The sites of the cloud request in progress, so a change of settings can stop it. */
+let cloudRequestSites: readonly string[] | undefined;
+/** Why a request was stopped when the settings stopped it, rather than the user. */
+const CLOUD_OFF = 'localpulse:cloud-off';
 let windowId: number | undefined;
 let tabRequest = 0;
 let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -198,6 +218,17 @@ function describeState(state: ProviderState): string {
       }[state.reason];
     case 'unsupported':
       return state.reason;
+  }
+}
+
+/** The provider and the server it talks to, so history rules notice when an address changes. */
+function providerKeyOf(settings: Settings, provider: Provider): string {
+  const endpoint = settings.endpoints.find((item) => item.id === provider.id);
+  if (!endpoint) return provider.id;
+  try {
+    return `${provider.id}@${new URL(endpoint.baseUrl).origin}`;
+  } catch {
+    return `${provider.id}@${endpoint.baseUrl}`;
   }
 }
 
@@ -307,11 +338,25 @@ export const usePanel = create<PanelState>()((set, get) => {
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       // Tab ids mean nothing after a restart and may point at another tab by then.
-      items: stored.map(({ status: _status, ...item }) => ({
-        ...item,
-        context: item.context && { ...item.context, editableTabId: undefined },
-      })),
+      // The selection is page text, which history never keeps.
+      items: stored.map(
+        ({ status: _status, selection: _selection, selectionTabId: _tab, ...item }) => ({
+          ...item,
+          context: item.context && {
+            ...item.context,
+            editableTabId: undefined,
+            editableText: undefined,
+          },
+        }),
+      ),
     });
+  };
+
+  /** Whether the latest settings (Local-only mode, never-send sites) keep these sites local. */
+  const cloudBlockedNow = (sites: readonly string[]): boolean => {
+    const latest = get().settings;
+    if (!latest) return false;
+    return latest.localOnly || sites.some((site) => isNeverCloudSite(site, latest.neverCloudSites));
   };
 
   const askConsent = (prompt: Omit<ConsentPrompt, 'resolve'>) =>
@@ -322,8 +367,7 @@ export const usePanel = create<PanelState>()((set, get) => {
       queued = action;
       return;
     }
-    // Read the tab again: the selection may be in a text field, where a rewrite can replace it.
-    if (action.tabId !== undefined) await get().refreshTab(action.tabId);
+    // No await before runRecipe claims the run, or an action arriving meanwhile would be lost.
     await get().runRecipe(action.recipeId, {
       tabId: action.tabId,
       selection: action.selection
@@ -363,9 +407,12 @@ export const usePanel = create<PanelState>()((set, get) => {
     // 1. What the model will read, and where it came from. Re-read the tab so it's current.
     let page: PromptPage | undefined;
     let sources: string[] = [];
+    // An action started from a page is about that page, even when a file is open in the panel.
+    const fromPage = options.tabId !== undefined || override !== undefined;
+    const file = fromPage ? null : get().file;
     if (recipe.input !== 'none') {
-      const { file } = get();
-      if (!override && !file) await get().refreshTab(options.tabId);
+      // Re-read the tab so it's current (and, for a right-click, to find the field it came from).
+      if (fromPage || !file) await get().refreshTab(options.tabId);
       const { tab } = get();
       const extracted = file ?? (tab.status === 'ready' ? tab.page : undefined);
       if (override?.text.trim()) {
@@ -392,6 +439,11 @@ export const usePanel = create<PanelState>()((set, get) => {
           settings.preferSelection || recipe.input === 'selection'
             ? extracted?.selection
             : undefined;
+        // Proofread or Rewrite change the text you selected; they never rewrite a whole page.
+        if (recipe.input === 'selection' && recipe.mode === 'transform' && !selection) {
+          get().showToast(t('toast.selectFirst'));
+          return;
+        }
         const text = selection ?? extracted?.markdown ?? '';
         if (text.trim()) {
           page = {
@@ -417,23 +469,27 @@ export const usePanel = create<PanelState>()((set, get) => {
         }
       }
     }
-    // Content whose site can't be told: never covered by saved consent.
-    const unknownSource = page !== undefined && sources.every((key) => key === UNKNOWN_SOURCE);
+    // Content whose site can't be checked (a local file, an unknown address) is never covered by
+    // saved consent or the never-send list: the user is asked every time.
+    const unverifiable =
+      page !== undefined &&
+      sources.some((key) => key === UNKNOWN_SOURCE || key.startsWith('file:'));
 
     // A rewrite can replace the selection in its text field. Taken now: the tab may change
     // while the consent dialog is open.
-    const tabPage = get().file ? undefined : get().tab.page;
-    const editableTabId =
+    const tabPage = file ? undefined : get().tab.page;
+    // Only a rewrite, proofread or translation may replace the text: never an explanation.
+    const editable =
       page?.source === 'selection' &&
+      recipe.mode === 'transform' &&
       tabPage?.selectionEditable &&
-      (!override || page.text === tabPage.selection)
-        ? get().tab.tabId
-        : undefined;
+      (!override || page.text === tabPage.selection);
+    const editableTabId = editable ? get().tab.tabId : undefined;
 
     // Several tabs: read the others too and put each under its own heading.
     const { extraTabs } = get();
     let tabCount: number | undefined;
-    if (page && page.source === 'page' && extraTabs.length > 0 && !get().file) {
+    if (page && page.source === 'page' && extraTabs.length > 0 && !file) {
       const others = await Promise.all(extraTabs.map((tab) => readTab(tab.tabId)));
       const pages = [
         { title: page.title, url: page.url, markdown: page.text },
@@ -450,7 +506,7 @@ export const usePanel = create<PanelState>()((set, get) => {
           text: pages
             .map(
               (item, index) =>
-                `# Tab ${index + 1}: ${item.title}\n\nFrom ${item.url}\n\n${item.markdown}`,
+                `# Tab ${index + 1}: ${item.title}\n\nFrom ${decodeAddress(item.url)}\n\n${item.markdown}`,
             )
             .join('\n\n'),
         };
@@ -471,15 +527,19 @@ export const usePanel = create<PanelState>()((set, get) => {
         host,
         hosts,
         pinnedProviderId: settings.pinnedProviders[recipe.id],
-        requireConsent: unknownSource,
+        requireConsent: unverifiable,
       },
       await policyFor(settings),
     );
     // Firefox: the data-collection permission may have been taken back since consent was saved.
+    // Earlier answers are about pages too, so a follow-up question needs it as well.
+    const sendsPageContent =
+      page !== undefined ||
+      (recipe.id === 'question' && get().items.some((item) => item.role === 'assistant'));
     if (
       decision.kind === 'use' &&
       decision.provider.privacy === 'cloud' &&
-      page &&
+      sendsPageContent &&
       !(await hasFirefoxDataConsent())
     ) {
       decision = { kind: 'consent', provider: decision.provider };
@@ -493,6 +553,8 @@ export const usePanel = create<PanelState>()((set, get) => {
             label: userText,
             instruction,
             contextUrl: page?.url || undefined,
+            selection: override,
+            tabId: options.tabId,
           },
           downloadable: decision.downloadable && {
             id: decision.downloadable.id,
@@ -526,16 +588,21 @@ export const usePanel = create<PanelState>()((set, get) => {
           id: decision.alternative.id,
           label: decision.alternative.label,
         },
-        remember: !unknownSource,
+        remember: !unverifiable,
       });
       if (choice === 'cancel') return;
       if (choice === 'use-alternative' && decision.alternative) {
         await get().enableOnDevice(decision.alternative.id);
         return;
       }
-      if ((choice === 'site' || choice === 'always') && !unknownSource) {
+      if ((choice === 'site' || choice === 'always') && !unverifiable) {
         await grantConsent(provider.id, choice, host);
       }
+    }
+    // The settings may have changed while the dialog was open.
+    if (provider.privacy === 'cloud' && cloudBlockedNow(sites)) {
+      get().showToast(t('toast.cloudOff'));
+      return;
     }
 
     // 3. Show the question and an empty answer.
@@ -544,6 +611,7 @@ export const usePanel = create<PanelState>()((set, get) => {
       url: page.url,
       source: page.source,
       editableTabId,
+      editableText: editable ? page.text : undefined,
       tabCount,
     };
     const earlier = recipe.id === 'question' ? get().items : [];
@@ -568,12 +636,14 @@ export const usePanel = create<PanelState>()((set, get) => {
           text: '',
           state: 'streaming',
           providerLabel: provider.label,
-          providerId: provider.id,
+          providerKey: providerKeyOf(settings, provider),
           privacy: provider.privacy,
           instruction,
           recipeId: recipe.id,
           context,
           lineBreaks: recipe.mode === 'transform' || undefined,
+          selection: override,
+          selectionTabId: override ? options.tabId : undefined,
         },
       ],
     }));
@@ -584,25 +654,33 @@ export const usePanel = create<PanelState>()((set, get) => {
     const buffer = textBuffer(answerId);
     const tried: string[] = [];
     let budgetScale = 1;
+    // One set of placeholders for the page and earlier turns, and the real values for the answer.
+    const redactor = new Redactor();
     try {
       for (;;) {
+        const cloud = provider.privacy === 'cloud';
+        const redact = cloud && settings.redactForCloud;
         // Earlier turns are chosen for each provider: a cloud one only gets what may go to it.
         const history = conversationHistory(earlier, {
           providerId: provider.id,
-          cloud: provider.privacy === 'cloud',
+          providerKey: providerKeyOf(settings, provider),
+          cloud,
           current: sources,
           neverCloudSites: settings.neverCloudSites,
           consent: await getConsent(),
-          redact: settings.redactForCloud,
+          redactor: redact ? redactor : undefined,
         });
-        const redaction =
-          page && provider.privacy === 'cloud' && settings.redactForCloud
-            ? redactPage(page)
-            : undefined;
+        const redaction = page && redact ? redactPage(page, redactor) : undefined;
         patchItem(answerId, {
           sources: [...new Set([...sources, ...history.sources])],
           leftOut: history.leftOut || undefined,
         });
+        // Local-only mode or a never-send site may have been switched on meanwhile.
+        if (cloud && cloudBlockedNow(sites)) {
+          patchItem(answerId, { state: 'error', status: undefined, error: t('toast.cloudOff') });
+          return;
+        }
+        cloudRequestSites = cloud ? sites : undefined;
         try {
           const result = await runTurn(
             provider,
@@ -621,8 +699,10 @@ export const usePanel = create<PanelState>()((set, get) => {
             controller.signal,
           );
           buffer.flush();
-          const answerText = stripPageTags(
-            get().items.find((item) => item.id === answerId)?.text ?? '',
+          // The answer shows the real emails and numbers that the cloud provider saw as
+          // placeholders; nothing leaves this computer for it.
+          const answerText = redactor.restore(
+            stripPageTags(get().items.find((item) => item.id === answerId)?.text ?? ''),
           );
           patchItem(answerId, {
             text: answerText,
@@ -639,6 +719,10 @@ export const usePanel = create<PanelState>()((set, get) => {
           return;
         } catch (error) {
           buffer.flush();
+          if (controller.signal.reason === CLOUD_OFF) {
+            patchItem(answerId, { state: 'error', status: undefined, error: t('toast.cloudOff') });
+            return;
+          }
           if (controller.signal.aborted || isAbortError(error)) {
             patchItem(answerId, { state: 'stopped', status: undefined });
             return;
@@ -664,13 +748,15 @@ export const usePanel = create<PanelState>()((set, get) => {
                 hosts,
                 exclude: tried,
                 onDeviceOnly: provider.privacy === 'on-device' && !settings.allowCloudFallback,
-                requireConsent: unknownSource,
+                requireConsent: unverifiable,
               },
-              await policyFor(settings),
+              await policyFor(get().settings ?? settings),
             );
             const allowed =
               next.kind === 'use' &&
-              (next.provider.privacy !== 'cloud' || !page || (await hasFirefoxDataConsent()));
+              (next.provider.privacy !== 'cloud' ||
+                !sendsPageContent ||
+                (await hasFirefoxDataConsent()));
             if (next.kind === 'use' && allowed) {
               buffer.reset();
               patchItem(answerId, {
@@ -682,7 +768,7 @@ export const usePanel = create<PanelState>()((set, get) => {
                   next: next.provider.label,
                 }),
                 providerLabel: next.provider.label,
-                providerId: next.provider.id,
+                providerKey: providerKeyOf(settings, next.provider),
                 privacy: next.provider.privacy,
               });
               provider = next.provider;
@@ -696,6 +782,7 @@ export const usePanel = create<PanelState>()((set, get) => {
       }
     } finally {
       buffer.flush();
+      cloudRequestSites = undefined;
       if (abortController === controller) abortController = undefined;
       set({ busy: false });
       void refreshPreview();
@@ -733,6 +820,9 @@ export const usePanel = create<PanelState>()((set, get) => {
       cleanups.push(
         watchSettings((settings) => {
           set({ settings });
+          if (cloudRequestSites && cloudBlockedNow(cloudRequestSites)) {
+            abortController?.abort(CLOUD_OFF);
+          }
           void refreshPreview();
         }),
       );
@@ -853,8 +943,12 @@ export const usePanel = create<PanelState>()((set, get) => {
       const answer = items[index];
       if (!answer || get().busy) return;
       set({ items: items.filter((_, i) => i !== index && i !== index - 1) });
-      if (answer.recipeId && answer.recipeId !== 'question') await get().runRecipe(answer.recipeId);
-      else if (answer.instruction) await get().ask(answer.instruction);
+      if (answer.recipeId && answer.recipeId !== 'question') {
+        await get().runRecipe(answer.recipeId, {
+          selection: answer.selection,
+          tabId: answer.selectionTabId,
+        });
+      } else if (answer.instruction) await get().ask(answer.instruction);
     },
 
     stop() {
@@ -881,7 +975,12 @@ export const usePanel = create<PanelState>()((set, get) => {
       set({ setup: null });
       if (!pending) return;
       if (pending.recipeId === 'question') await get().ask(pending.instruction);
-      else await get().runRecipe(pending.recipeId);
+      else {
+        await get().runRecipe(pending.recipeId, {
+          selection: pending.selection,
+          tabId: pending.tabId,
+        });
+      }
     },
 
     async enableOnDevice(providerId) {

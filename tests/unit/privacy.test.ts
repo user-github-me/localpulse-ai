@@ -5,25 +5,26 @@ import {
   normalizeSiteRule,
   redactPage,
   redactSensitive,
+  Redactor,
 } from '@/core/privacy';
 
 describe('redactSensitive', () => {
   it('hides email addresses', () => {
     const result = redactSensitive('Write to jane.doe+news@example.co.uk today.');
-    expect(result.text).toBe('Write to [email] today.');
+    expect(result.text).toBe('Write to [email 1] today.');
     expect(result.count).toBe(1);
   });
 
   it('hides card numbers that pass the Luhn check only', () => {
     expect(redactSensitive('Card 4111 1111 1111 1111 expires').text).toBe(
-      'Card [card number] expires',
+      'Card [card number 1] expires',
     );
     expect(redactSensitive('Order 1234 5678 9012 3456').text).toBe('Order 1234 5678 9012 3456');
   });
 
   it('hides phone numbers in common formats', () => {
     for (const phone of ['+1 (415) 555-0132', '+880 1712-345678', '020 7946 0958']) {
-      expect(redactSensitive(`Call ${phone} now`).text).toBe('Call [phone] now');
+      expect(redactSensitive(`Call ${phone} now`).text).toBe('Call [phone 1] now');
     }
   });
 
@@ -36,10 +37,38 @@ describe('redactSensitive', () => {
   });
 });
 
+describe('Redactor', () => {
+  it('numbers placeholders, reuses them for the same value, and restores the answer', () => {
+    const redactor = new Redactor();
+    expect(redactor.redact('Mail ana@x.example, or ana@x.example, or bo@x.example.')).toBe(
+      'Mail [email 1], or [email 1], or [email 2].',
+    );
+    expect(redactor.redact('Call 020 7946 0958.')).toBe('Call [phone 1].');
+    // What the model wrote from the placeholders shows the real values again.
+    expect(redactor.restore('Write to [Email 1] and call [phone 1]; not [email 9].')).toBe(
+      'Write to ana@x.example and call 020 7946 0958; not [email 9].',
+    );
+    expect(redactor.count).toBe(4);
+  });
+
+  it('finds addresses next to Chinese or Japanese text without swallowing it', () => {
+    expect(redactSensitive('请联系jane@example.com了解详情').text).toBe('请联系[email 1]了解详情');
+    const long = `${'中'.repeat(80)}jane@example.com`;
+    expect(redactSensitive(long).text).toBe(`${'中'.repeat(80)}[email 1]`);
+  });
+
+  it('hides phone numbers written with full-width or Bengali digits and Unicode dashes', () => {
+    expect(redactSensitive('电话：０２０ ７９４６ ０９５８。').text).toBe('电话：[phone 1]。');
+    expect(redactSensitive('ফোন: ০১৭১১-২৩৪৫৬৭').text).toBe('ফোন: [phone 1]');
+    expect(redactSensitive('Tel 020‐7946‐0958').text).toBe('Tel [phone 1]');
+  });
+});
+
 describe('never-cloud sites', () => {
   it('normalizes what users type', () => {
     expect(normalizeSiteRule('https://www.MyBank.com/login')).toBe('mybank.com');
     expect(normalizeSiteRule('*.mail.example.org')).toBe('mail.example.org');
+    expect(normalizeSiteRule('.bank.com')).toBe('bank.com');
     expect(normalizeSiteRule('  ')).toBe('');
   });
 
@@ -69,9 +98,9 @@ describe('redactPage', () => {
       url: 'https://mail.example.com/?to=bob%40example.org',
       text: 'Call 020 7946 0958.',
     });
-    expect(page.title).toBe('Inbox (3) - [email] - Mail');
-    expect(page.url).toBe('https://mail.example.com/?to=[email]');
-    expect(page.text).toBe('Call [phone].');
+    expect(page.title).toBe('Inbox (3) - [email 1] - Mail');
+    expect(page.url).toBe('https://mail.example.com/?to=[email 2]');
+    expect(page.text).toBe('Call [phone 1].');
     expect(count).toBe(3);
   });
 });

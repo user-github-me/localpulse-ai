@@ -48,3 +48,36 @@ describe('chunkText', () => {
     expect(chunks.some((chunk) => chunk.includes(code))).toBe(true);
   });
 });
+
+describe('chunkText with big tables and code', () => {
+  it('splits a big table by rows and repeats its header in every part', () => {
+    const rows = Array.from(
+      { length: 60 },
+      (_, i) => `| Row ${i} | Value number ${i} for this row |`,
+    );
+    const table = ['| Name | Value |', '| --- | --- |', ...rows].join('\n');
+    const chunks = chunkText(table, 120);
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const chunk of chunks) {
+      expect(chunk.startsWith('| Name | Value |\n| --- | --- |')).toBe(true);
+      expect(chunk.split('\n').every((line) => line.startsWith('|') && line.endsWith('|'))).toBe(
+        true,
+      );
+    }
+    expect(chunks.join('\n').match(/\| Row \d+ \|/g)).toHaveLength(60);
+  });
+
+  it('splits a big code block by lines and keeps every part fenced', () => {
+    const code = [
+      '```js',
+      ...Array.from({ length: 80 }, (_, i) => `const value${i} = compute(${i}); // step ${i}.`),
+      '```',
+    ].join('\n');
+    const chunks = chunkText(code, 120);
+    expect(chunks.length).toBeGreaterThan(1);
+    for (const chunk of chunks) {
+      expect(chunk.startsWith('```js\n')).toBe(true);
+      expect(chunk.endsWith('\n```')).toBe(true);
+    }
+  });
+});

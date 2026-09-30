@@ -27,7 +27,7 @@ export function normalizeSiteRule(rule: string): string {
   } catch {
     // Keep the raw value.
   }
-  return canonicalHost(value.replace(/^\*\./, '').replace(/\/.*$/, ''));
+  return canonicalHost(value.replace(/^\*?\.+/, '').replace(/\/.*$/, ''));
 }
 
 /** True if `host` is a listed site or a subdomain of one. */
@@ -46,12 +46,39 @@ export interface RedactionResult {
   count: number;
 }
 
-// Starts only where a run of address characters starts, with bounded parts, so it stays linear:
-// an unbounded local part made long text without an "@" take quadratic time.
+// Emails: an ASCII name (so it starts right after Chinese, Japanese or other text with no space in
+// between), a domain in any script, and a Latin top-level domain. Starting only where a run of
+// name characters starts, with bounded parts, keeps it linear on long text.
 const EMAIL =
-  /(?<![\p{L}\p{N}._%+-])[\p{L}\p{N}._%+-]{1,64}@[\p{L}\p{N}-]{1,63}(?:\.[\p{L}\p{N}-]{1,63}){0,8}\.\p{L}{2,24}/gu;
-const CARD_CANDIDATE = /(?<![\d-])(?:\d[ -]?){12,18}\d(?![\d-])/g;
-const PHONE_CANDIDATE = /(?<![\w+])(?:\+|00)?\d[\d ()./-]{6,}\d(?!\w)/g;
+  /(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}@[\p{L}\p{N}-]{1,63}(?:\.[\p{L}\p{N}-]{1,63}){0,8}\.[A-Za-z]{2,24}/gu;
+// Digits in any script (full-width, Bengali, Arabic-Indic…) and any kind of dash.
+const DASHES = '\\-\u2010-\u2015\u2212\uFF0D';
+const CARD_CANDIDATE = new RegExp(
+  `(?<![\\p{Nd}${DASHES}])(?:\\p{Nd}[ ${DASHES}]?){12,18}\\p{Nd}(?![\\p{Nd}${DASHES}])`,
+  'gu',
+);
+const PHONE_CANDIDATE = new RegExp(
+  `(?<![\\p{L}\\p{N}_+])(?:\\+|00)?\\p{Nd}[\\p{Nd} ()./${DASHES}]{6,}\\p{Nd}(?![\\p{L}\\p{N}_])`,
+  'gu',
+);
+
+// The zero of each run of ten digits, for scripts whose digits pages use.
+const DIGIT_ZEROS = [
+  0x30, 0x660, 0x6f0, 0x7c0, 0x966, 0x9e6, 0xa66, 0xae6, 0xb66, 0xbe6, 0xc66, 0xce6, 0xd66, 0xde6,
+  0xe50, 0xed0, 0xf20, 0x1040, 0x1090, 0x17e0, 0x1810, 0xff10,
+];
+
+/** Writes digits of any script as 0-9 and every dash as "-", so the shape checks below work. */
+function asciiShape(text: string): string {
+  return [...text]
+    .map((char) => {
+      const code = char.codePointAt(0) ?? 0;
+      const zero = DIGIT_ZEROS.find((start) => code >= start && code < start + 10);
+      if (zero !== undefined) return String(code - zero);
+      return /[\u2010-\u2015\u2212\uFF0D]/.test(char) ? '-' : char;
+    })
+    .join('');
+}
 
 function luhnValid(digits: string): boolean {
   let sum = 0;
@@ -80,25 +107,72 @@ function looksLikePhone(match: string): boolean {
   return hasPhoneShape;
 }
 
-/** Replaces emails, card numbers (Luhn-checked) and phone numbers with placeholders. */
+type SensitiveKind = 'email' | 'phone' | 'card number';
+
+/**
+ * Hides emails, card numbers (Luhn-checked) and phone numbers behind numbered placeholders, such
+ * as "[email 1]", before text goes to a cloud provider. It remembers what each one stood for, so
+ * the answer can show the real values again on this computer. The same value always gets the same
+ * placeholder, across the page and the earlier turns of one request.
+ */
+export class Redactor {
+  /** How many values were hidden, counting repeats. */
+  count = 0;
+  private readonly originals = new Map<string, string>();
+  private readonly labels = new Map<string, string>();
+  private readonly numbers: Partial<Record<SensitiveKind, number>> = {};
+
+  private label(kind: SensitiveKind, value: string): string {
+    const key = `${kind}\u0000${value}`;
+    let label = this.labels.get(key);
+    if (!label) {
+      const number = (this.numbers[kind] ?? 0) + 1;
+      this.numbers[kind] = number;
+      label = `[${kind} ${number}]`;
+      this.labels.set(key, label);
+      this.originals.set(label, value);
+    }
+    this.count++;
+    return label;
+  }
+
+  redact(text: string): string {
+    let result = text.replace(EMAIL, (match) => this.label('email', match));
+    result = result.replace(CARD_CANDIDATE, (match) => {
+      const digits = asciiShape(match).replace(/\D/g, '');
+      if (digits.length < 13 || digits.length > 19 || !luhnValid(digits)) return match;
+      return this.label('card number', match);
+    });
+    return result.replace(PHONE_CANDIDATE, (match) =>
+      looksLikePhone(asciiShape(match).trim()) ? this.label('phone', match) : match,
+    );
+  }
+
+  /** Puts the real values back where an answer uses the placeholders. */
+  restore(text: string): string {
+    if (this.originals.size === 0) return text;
+    return text.replace(
+      /\[(email|phone|card number) (\d+)\]/gi,
+      (match, kind: string, number: string) =>
+        this.originals.get(`[${kind.toLowerCase()} ${number}]`) ?? match,
+    );
+  }
+}
+
+/** Replaces emails, card numbers and phone numbers with numbered placeholders. */
 export function redactSensitive(text: string): RedactionResult {
-  let count = 0;
-  let result = text.replace(EMAIL, () => {
-    count++;
-    return '[email]';
-  });
-  result = result.replace(CARD_CANDIDATE, (match) => {
-    const digits = match.replace(/\D/g, '');
-    if (digits.length < 13 || digits.length > 19 || !luhnValid(digits)) return match;
-    count++;
-    return '[card number]';
-  });
-  result = result.replace(PHONE_CANDIDATE, (match) => {
-    if (!looksLikePhone(match.trim())) return match;
-    count++;
-    return '[phone]';
-  });
-  return { text: result, count };
+  const redactor = new Redactor();
+  const redacted = redactor.redact(text);
+  return { text: redacted, count: redactor.count };
+}
+
+/** Decodes a percent-encoded address, so "bob%40mail.com" can be seen (and hidden) as an email. */
+export function decodeAddress(url: string): string {
+  try {
+    return decodeURIComponent(url);
+  } catch {
+    return url;
+  }
 }
 
 /**
@@ -107,17 +181,14 @@ export function redactSensitive(text: string): RedactionResult {
  */
 export function redactPage<T extends { title: string; url: string; text: string }>(
   page: T,
+  redactor = new Redactor(),
 ): { page: T; count: number } {
-  let url = page.url;
-  try {
-    url = decodeURIComponent(url);
-  } catch {
-    // Keep the address as it is.
-  }
-  const parts = [page.title, url, page.text].map(redactSensitive);
-  const [title, address, text] = parts as [RedactionResult, RedactionResult, RedactionResult];
-  return {
-    page: { ...page, title: title.text, url: address.text, text: text.text },
-    count: parts.reduce((sum, part) => sum + part.count, 0),
+  const before = redactor.count;
+  const redacted = {
+    ...page,
+    title: redactor.redact(page.title),
+    url: redactor.redact(decodeAddress(page.url)),
+    text: redactor.redact(page.text),
   };
+  return { page: redacted, count: redactor.count - before };
 }

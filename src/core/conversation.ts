@@ -1,7 +1,7 @@
 import { hostnameOf } from '@/lib/text';
 import type { ChatMessage } from '@/providers/types';
 import { hasConsent, type CloudConsent } from '@/storage/consent';
-import { isNeverCloudSite, redactSensitive } from './privacy';
+import { isNeverCloudSite, type Redactor } from './privacy';
 
 /** Where content came from when it can't be told, e.g. an answer saved by an older version. */
 export const UNKNOWN_SOURCE = '?';
@@ -14,7 +14,8 @@ export const UNKNOWN_SOURCE = '?';
 export function sourceKey(url: string | undefined): string {
   if (!url) return UNKNOWN_SOURCE;
   if (url.startsWith('file:')) return url;
-  return hostnameOf(url) ?? UNKNOWN_SOURCE;
+  // A blob: address belongs to the site that made it, e.g. a PDF a bank page opened.
+  return hostnameOf(url.replace(/^blob:/, '')) ?? UNKNOWN_SOURCE;
 }
 
 /** The parts of a conversation item the history rules need. */
@@ -26,20 +27,25 @@ export interface TurnItem {
   state?: 'streaming' | 'done' | 'stopped' | 'error';
   /** For answers: the sources of the page and of the earlier turns it was written from. */
   sources?: string[];
-  /** For answers: the provider that wrote it. */
-  providerId?: string;
+  /** For answers: the provider that wrote it and the server it used (see providerKey). */
+  providerKey?: string;
 }
 
 export interface HistoryPolicy {
-  /** The provider this turn goes to. */
+  /** The provider this turn goes to: the id its consent is saved under. */
   providerId: string;
+  /**
+   * That provider and the server it talks to, e.g. "ep:gemini@https://api.example". An answer it
+   * wrote itself may go back to it, but not after its address changed to another server.
+   */
+  providerKey: string;
   cloud: boolean;
   /** Sources of the content sent with this turn. */
   current: readonly string[];
   neverCloudSites: readonly string[];
   consent: CloudConsent;
-  /** Hide emails, phone numbers and card numbers, as for the page. */
-  redact: boolean;
+  /** Hides emails, phone numbers and card numbers, with the same placeholders as the page. */
+  redactor?: Redactor;
 }
 
 export interface ConversationHistory {
@@ -86,23 +92,18 @@ export function conversationHistory(
     );
   }
 
-  let redactions = 0;
-  if (policy.cloud && policy.redact) {
-    for (const message of messages) {
-      const redacted = redactSensitive(message.content);
-      message.content = redacted.text;
-      redactions += redacted.count;
-    }
-  }
-  return { messages, sources: [...sources], leftOut, redactions };
+  const redactor = policy.cloud ? policy.redactor : undefined;
+  const before = redactor?.count ?? 0;
+  if (redactor) for (const message of messages) message.content = redactor.redact(message.content);
+  return { messages, sources: [...sources], leftOut, redactions: (redactor?.count ?? 0) - before };
 }
 
 function mayGoToCloud(item: TurnItem, policy: HistoryPolicy): boolean {
   // Saved by an older version, which didn't record where answers came from.
   if (!item.sources) return false;
   if (item.sources.some((source) => isNeverCloudSite(source, policy.neverCloudSites))) return false;
-  // This provider wrote it, so its content already went there.
-  if (item.providerId === policy.providerId) return true;
+  // This provider wrote it, on this same server, so its content already went there.
+  if (item.providerKey !== undefined && item.providerKey === policy.providerKey) return true;
   // Content of unknown origin can't be checked against the never-send list, so it stays out.
   return item.sources.every(
     (source) =>

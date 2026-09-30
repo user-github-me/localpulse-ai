@@ -4,6 +4,38 @@ All notable changes to LocalPulse AI. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## 1.0.1 — 2026-09-30
+
+A fix release: privacy edge cases, a safer Replace, and better results in other languages. No
+permissions changed.
+
+### Fixed
+
+- **Replace selection** writes only over the text the answer was written from, on the same page,
+  and keeps the spaces and line breaks around it.
+- **Hidden details come back in answers:** emails, phone numbers and card numbers that a cloud
+  provider saw as placeholders show their real values in the answer, on this computer only. Replace
+  and quote checks use them too.
+- **Privacy:**
+  - switching on Local-only mode or a never-send site during a request stops it;
+  - local files and pages of unknown origin always ask before going to the cloud;
+  - never-send rules written as ".bank.com" work, and blob: pages count as the site that made
+    them;
+  - earlier answers don't go to an endpoint whose server address has changed;
+  - emails next to Chinese or Japanese text, in the addresses of several tabs, and phone numbers
+    in full-width or Bengali digits are hidden;
+  - Firefox: follow-up questions also need the website-content permission.
+- **Right-click and shortcut actions** read the page even when a file is open in the panel, keep
+  their selection for Try again and "Continue in", and aren't lost when two arrive together.
+- **Languages:** the built-in summarizer no longer writes English summaries for other answer
+  languages; translations use the browser's translator when the built-in model can't write the
+  language, and say why when nothing can translate the text.
+- Requests that were too large are retried with smaller parts for the summarizer and translator
+  too.
+- Answers keep code and tags that only look like LocalPulse's internal page wrapper.
+- Wording: word counts in the consent dialog, the hand-off steps (you paste the question), and the
+  Settings notes on history and site access.
+
 ## 1.0.0 — 2026-09-30
 
 First release.

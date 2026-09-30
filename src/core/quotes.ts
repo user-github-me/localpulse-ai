@@ -10,14 +10,15 @@ export interface CheckedQuote {
   found: boolean;
 }
 
-/** Lowercases and flattens quotes, dashes and whitespace so small typographic differences match. */
+/**
+ * Makes small differences not count: letter case, full-width forms, and punctuation (commas, quote
+ * marks, dashes) in any language. Only the words and their order decide a match.
+ */
 export function normalizeForMatch(text: string): string {
   return text
+    .normalize('NFKC')
     .toLowerCase()
-    .replace(/[‘’‚′]/g, "'")
-    .replace(/[“”„″]/g, '"')
-    .replace(/[‐-―]/g, '-')
-    .replace(/[*_`]/g, '')
+    .replace(/[\p{P}\p{S}]/gu, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -32,8 +33,17 @@ export function extractQuotes(answer: string): string[] {
       .replace(/^[.…\s]+|[.…\s]+$/g, '');
     if (countWords(text) >= 4 && text.length <= 400) quotes.add(text);
   };
-  for (const match of answer.matchAll(/["“]([^"“”\n]{12,400})["”]/g)) {
-    if (match[1]) add(match[1]);
+  // Pairs are read from left to right, so a closing quote mark never starts the next quote.
+  for (const match of answer.matchAll(
+    /"([^"\n]*)"|“([^“”\n]*)”|「([^「」\n]*)」|『([^『』\n]*)』/g,
+  )) {
+    const text = match[1] ?? match[2] ?? match[3] ?? match[4] ?? '';
+    if (
+      text.length >= 12 ||
+      (text.length >= 6 &&
+        /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(text))
+    )
+      add(text);
   }
   const blockquote: string[] = [];
   for (const line of [...answer.split('\n'), '']) {

@@ -263,7 +263,9 @@ export class BuiltinAIProvider implements Provider {
   }
 
   async canSummarize(language?: string): Promise<boolean> {
-    if (!hasSummarizer()) return false;
+    // Its output languages are limited; for any other language, the chat model answers instead
+    // of an English summary.
+    if (!hasSummarizer() || (language !== undefined && !promptLanguage(language))) return false;
     const availability = await availabilityOf(() =>
       Summarizer.availability(summarizerOptions(language)),
     );
@@ -301,6 +303,10 @@ export class BuiltinAIProvider implements Provider {
     } finally {
       summarizer.destroy();
     }
+  }
+
+  writesLanguage(language: string): boolean {
+    return promptLanguage(language) !== undefined;
   }
 
   detectLanguage(text: string): Promise<string | undefined> {

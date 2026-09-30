@@ -1,4 +1,4 @@
-// Renders assets/icon.svg to the PNG sizes browsers and stores need. Run: pnpm icons
+// Renders assets/icon.svg to the PNG sizes browsers and stores need. Run: corepack pnpm icons
 import { mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

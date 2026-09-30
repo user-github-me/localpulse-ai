@@ -6,26 +6,29 @@ import {
   type HistoryPolicy,
   type TurnItem,
 } from '@/core/conversation';
+import { Redactor } from '@/core/privacy';
 
 function turn(
   question: string,
   answer: string,
   sources: string[] | undefined,
-  providerId = 'ep:local',
+  providerKey = 'ep:local@http://localhost:11434',
 ): TurnItem[] {
   return [
     { role: 'user', text: question },
-    { role: 'assistant', text: answer, state: 'done', sources, providerId },
+    { role: 'assistant', text: answer, state: 'done', sources, providerKey },
   ];
 }
 
+const GEMINI = 'ep:gemini@https://generativelanguage.googleapis.com';
+
 const cloud = (overrides: Partial<HistoryPolicy> = {}): HistoryPolicy => ({
   providerId: 'ep:gemini',
+  providerKey: GEMINI,
   cloud: true,
   current: ['news.example'],
   neverCloudSites: [],
   consent: { always: [], sites: {} },
-  redact: false,
   ...overrides,
 });
 
@@ -38,6 +41,8 @@ describe('sourceKey', () => {
     expect(sourceKey('file:report.pdf')).toBe('file:report.pdf');
     expect(sourceKey('')).toBe(UNKNOWN_SOURCE);
     expect(sourceKey(undefined)).toBe(UNKNOWN_SOURCE);
+    // A blob: address belongs to the site that made it.
+    expect(sourceKey('blob:https://secure.mybank.com/1c9e-4f')).toBe('secure.mybank.com');
   });
 });
 
@@ -89,10 +94,20 @@ describe('conversationHistory', () => {
 
   it('includes turns the same cloud provider wrote, since it has already seen them', () => {
     const history = conversationHistory(
-      turn('Summarize', 'Short summary.', ['other.example'], 'ep:gemini'),
+      turn('Summarize', 'Short summary.', ['other.example'], GEMINI),
       cloud(),
     );
     expect(questions(history)).toEqual(['Summarize']);
+  });
+
+  it("doesn't count answers from the same provider slot on another server as its own", () => {
+    // The endpoint's address was changed to another server after this answer.
+    const history = conversationHistory(
+      turn('Summarize', 'Short summary.', ['other.example'], 'ep:gemini@https://old.example'),
+      cloud(),
+    );
+    expect(history.messages).toEqual([]);
+    expect(history.leftOut).toBe(1);
   });
 
   it('keeps out answers of unknown origin, including those saved by older versions', () => {
@@ -113,10 +128,10 @@ describe('conversationHistory', () => {
           'news.example',
         ]),
       ],
-      cloud({ redact: true }),
+      cloud({ redactor: new Redactor() }),
     );
     expect(history.messages.map((message) => message.role)).toEqual(['user', 'assistant']);
-    expect(history.messages[1]?.content).toBe('Write to [email] or call [phone].');
+    expect(history.messages[1]?.content).toBe('Write to [email 1] or call [phone 1].');
     expect(history.redactions).toBe(2);
   });
 });

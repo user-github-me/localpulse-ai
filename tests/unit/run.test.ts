@@ -169,6 +169,54 @@ describe('runTurn', () => {
     expect(statuses).toContain(undefined);
   });
 
+  it("downloads the pack when the chat model can't write the language asked for", async () => {
+    const provider = new FakeTranslatorProvider('builtin', { reply: () => 'Model translation.' });
+    provider.pairs.add('zh>bn');
+    provider.availability = 'downloadable';
+    provider.writes = ['en', 'es', 'ja'];
+    const result = await runTurn(
+      provider,
+      {
+        recipe: translate,
+        instruction: 'Translate this into Bangla.',
+        page: page(chinese, { source: 'selection' }),
+        history: [],
+        language: 'bn',
+      },
+      { onText: () => {} },
+    );
+    expect(result.strategy).toBe('translator');
+    expect(provider.translations[0]).toMatchObject({ from: 'zh', to: 'bn' });
+  });
+
+  it("shows the translator's own error when there's no chat model to fall back to", async () => {
+    const provider = new FakeTranslatorProvider('builtin', {
+      state: { kind: 'unsupported', reason: 'No chat model' },
+    });
+    provider.failToStart = true;
+    await expect(translateSelection(provider)).rejects.toThrow(
+      'The language pack needs a download',
+    );
+  });
+
+  it('says why when only a translator is there and the language is unknown', async () => {
+    const provider = new FakeTranslatorProvider('builtin', {
+      state: { kind: 'unsupported', reason: 'No chat model' },
+    });
+    const latin = runTurn(
+      provider,
+      {
+        recipe: translate,
+        instruction: 'Translate this into English.',
+        page: page('Bonjour tout le monde, comment allez-vous ?', { source: 'selection' }),
+        history: [],
+        language: 'en',
+      },
+      { onText: () => {} },
+    );
+    await expect(latin).rejects.toThrow(/couldn't tell which language/);
+  });
+
   it("lets the model translate when the translator can't start", async () => {
     const provider = new FakeTranslatorProvider('builtin', {
       reply: () => 'You received this email because you asked to reset your password.',
@@ -178,6 +226,26 @@ describe('runTurn', () => {
     expect(result.strategy).toBe('direct');
     expect(provider.calls).toHaveLength(1);
     expect(output).toBe('You received this email because you asked to reset your password.');
+  });
+
+  it('gives the Summarizer smaller parts after the provider said the input was too large', async () => {
+    const parts = async (budgetScale: number) => {
+      const provider = new FakeSummarizerProvider('builtin');
+      await runTurn(
+        provider,
+        {
+          recipe: summarize,
+          instruction: 'Sum',
+          page: page(lorem(2000)),
+          history: [],
+          language: 'en',
+          budgetScale,
+        },
+        { onText: () => {} },
+      );
+      return provider.summaries.length;
+    };
+    expect(await parts(0.5)).toBeGreaterThan(await parts(1));
   });
 
   it('uses the built-in Summarizer API for summaries when available', async () => {

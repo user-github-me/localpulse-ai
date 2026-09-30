@@ -16,14 +16,14 @@ export function ConsentDialog() {
   const provider = providerName(label);
   const what =
     consent?.source === 'selection'
-      ? t('consent.whatSelection', { words: formatNumber(consent.words) })
+      ? t('consent.whatSelection', consent.words, { words: formatNumber(consent.words) })
       : consent?.tabCount
-        ? t('consent.whatTabs', {
+        ? t('consent.whatTabs', consent.words, {
             words: formatNumber(consent.words),
             count: String(consent.tabCount),
           })
         : consent?.source === 'page'
-          ? t('consent.whatPage', { words: formatNumber(consent.words) })
+          ? t('consent.whatPage', consent.words, { words: formatNumber(consent.words) })
           : t('consent.whatQuestion');
 
   return (

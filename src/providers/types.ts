@@ -64,6 +64,8 @@ export interface Provider {
   translate?(text: string, from: string, to: string, signal?: AbortSignal): AsyncIterable<string>;
   /** Whether the translator for this pair is on this computer, can be downloaded, or doesn't exist. */
   translatorAvailability?(from: string, to: string): Promise<TranslatorAvailability>;
+  /** Whether its chat model can write in this language (BCP 47); assumed when missing. */
+  writesLanguage?(language: string): boolean;
   /** The language of a text as a BCP 47 tag (Language Detector API), if it can tell. */
   detectLanguage?(text: string): Promise<string | undefined>;
 }

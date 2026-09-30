@@ -2,7 +2,7 @@
 # and translate the values. Keep {placeholders} and $1 as they are. See CONTRIBUTING.md.
 
 extName: LocalPulse AI
-extDescription: Summarize and chat with any page in the side panel, using on-device AI first. Open source, no tracking.
+extDescription: Summarize and chat with any page in the side panel using on-device AI first; open source, with no tracking.
 actionTitle: Open LocalPulse AI
 commandSummarize: Summarize the current page
 
@@ -154,6 +154,7 @@ conversation:
   replace: Replace selection
   replaced: Replaced the selected text on the page.
   replaceFailed: Couldn't replace it. Select the text in the field again, then try once more.
+  replaceChanged: The page or the selected text has changed since this answer, so nothing was replaced. Select the same text again and ask once more.
   switched: "{failed} couldn't answer ({reason}) so {next} answered instead."
 
 turn:
@@ -162,6 +163,8 @@ turn:
   writingAnswer: Writing the answer…
   writingSummary: Writing the summary…
   downloadingTranslator: Downloading the browser's translator for this language (only the first time)…
+  alreadyInLanguage: This text is already in the language answers are written in.
+  unknownLanguage: LocalPulse couldn't tell which language this text is in, so the browser's translator can't start.
   part: Part {part} of {total}…
 
 quotes:
@@ -187,9 +190,15 @@ composer:
 
 consent:
   title: Send to {provider}?
-  whatSelection: The {words} words you selected
-  whatTabs: About {words} words from {count} tabs
-  whatPage: About {words} words from this page
+  whatSelection:
+    1: The 1 word you selected
+    n: The {words} words you selected
+  whatTabs:
+    1: About 1 word from {count} tabs
+    n: About {words} words from {count} tabs
+  whatPage:
+    1: About 1 word from this page
+    n: About {words} words from this page
   whatQuestion: Your question
   body: '{what} will be sent to {provider}, which runs in the cloud, not on this computer.'
   bodyHost: '{what} on {host} will be sent to {provider}, which runs in the cloud, not on this computer.'
@@ -215,7 +224,7 @@ setup:
   keyBody: Gemini, OpenRouter, Groq and others have free plans. Pages you ask about are sent to that company, and LocalPulse asks you first.
   keyButton: Add an API key
   handoffTitle: A chat app you already use
-  handoffBody: Opens the site with your request ready. You press Send there.
+  handoffBody: Copies your request and opens the site. You paste it and press Send there.
   cloudBlocked: Cloud providers are off for this page, because of Local-only mode or your list of sites that never go to the cloud.
   why: Why nothing is ready
   ready: '{provider} is ready.'
@@ -223,7 +232,7 @@ setup:
 handoff:
   continueIn: Continue in…
   menuTitle: Ask in a chat app you already use
-  menuBody: LocalPulse opens the site with the question ready. You press Send there.
+  menuBody: LocalPulse copies the question and opens the site. You paste it and press Send there.
   includeText: Include the page text (copied to your clipboard, never put in the link)
   copied: Prompt copied. In {target}, paste it with {paste} and press Send.
   opened: Opened {target}.
@@ -240,6 +249,8 @@ history:
   deleteAll: Delete all history
 
 toast:
+  cloudOff: Cloud providers are now off for this page, so nothing more was sent.
+  selectFirst: Select the text you want to change first.
   allowTab: Allow LocalPulse to read this tab first.
   pdfNotReady: Can't read this PDF yet.
   noText: This page has no text to read.
@@ -258,7 +269,7 @@ options:
   privacy: Privacy
   answers: Answers and appearance
   about: About
-  providersIntro: LocalPulse uses the first provider in this list that's ready. Providers on this device come first by default. Cloud providers always ask before a page is sent to them.
+  providersIntro: LocalPulse uses the first provider in this list that's ready. Providers on this device come first by default. Nothing is sent to a cloud provider until you agree.
   cloud: Cloud
   onDevice: On this device
   turnedOff: turned off
@@ -346,7 +357,7 @@ privacy:
   fallback: Use a cloud provider when an on-device one fails
   fallbackNote: Off by default, so a failure never moves your page to the cloud without you choosing it.
   history: Keep chat history on this computer
-  historyNote: Questions and answers are saved in this browser only, never uploaded. Page text isn't saved.
+  historyNote: Your questions and the answers, with the title and address of the page each was about, are saved in this browser only, never uploaded. Page text isn't saved.
   preferSelection: Use selected text when there is a selection
   preferSelectionNote: Otherwise LocalPulse reads the whole page.
   sites: Sites that never go to the cloud
@@ -361,7 +372,7 @@ privacy:
   historyDeleted: History deleted
   deleteAll: Delete all history
   readingTitle: Reading pages
-  allSitesOn: LocalPulse can read any tab while its panel is open. It reads a page only when you use it.
+  allSitesOn: LocalPulse can read the tab next to its open panel on any site, without you clicking its icon first.
   allSitesOff: LocalPulse reads a tab only after you click its icon there, or on sites you allowed.
   stopAllSites: Stop allowing all sites
 
@@ -428,7 +439,7 @@ onboarding:
   keyBody: Google Gemini, OpenRouter, Groq and Mistral have free plans. Pages you ask about go to that company, and LocalPulse asks you first.
   keyButton: Add an API key
   handoffTitle: A chat app you already use
-  handoffBody: Without any setup, LocalPulse can open ChatGPT, Claude, Gemini or Perplexity with your question ready to send.
+  handoffBody: Without any setup, LocalPulse can copy your question and open ChatGPT, Claude, Gemini or Perplexity for you to paste and send.
   doneTitle: You're ready.
   tip1: Pin LocalPulse to the toolbar from the extensions menu, then click it on any page. You can also press {shortcut}.
   tip2: Select text and right-click to explain, summarize or translate just that part.

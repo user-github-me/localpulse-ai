@@ -3,10 +3,21 @@ import { useId, useState } from 'react';
 import { HANDOFF_TARGETS, handOff, type HandoffInput } from '@/providers/handoff';
 import { t } from '../../shared/i18n';
 import { isMac } from '../../shared/open';
-import { usePanel } from '../store';
+import { usePanel, type SelectionSource } from '../store';
 
-/** Builds the hand-off input from the current tab, if it's still the page the answer was about. */
-function handoffInput(instruction: string, contextUrl?: string): HandoffInput {
+/**
+ * Builds the hand-off input: the text chosen from the context menu, or else the current tab, if
+ * it's still the page the answer was about.
+ */
+function handoffInput(
+  instruction: string,
+  contextUrl?: string,
+  chosen?: SelectionSource,
+): HandoffInput {
+  if (chosen) {
+    const url = chosen.url ?? contextUrl ?? '';
+    return { instruction, page: { title: url, url, text: chosen.text, source: 'selection' } };
+  }
   const { tab, settings } = usePanel.getState();
   const page = tab.status === 'ready' ? tab.page : undefined;
   if (!page || (contextUrl && page.url !== contextUrl)) {
@@ -33,9 +44,11 @@ function handoffInput(instruction: string, contextUrl?: string): HandoffInput {
 export function HandoffButtons({
   instruction,
   contextUrl,
+  selection,
 }: {
   instruction: string;
   contextUrl?: string;
+  selection?: SelectionSource;
 }) {
   const showToast = usePanel((state) => state.showToast);
   const [includeText, setIncludeText] = useState(true);
@@ -43,7 +56,7 @@ export function HandoffButtons({
   const go = async (targetId: string) => {
     const target = HANDOFF_TARGETS.find((item) => item.id === targetId);
     if (!target) return;
-    const input = handoffInput(instruction, contextUrl);
+    const input = handoffInput(instruction, contextUrl, selection);
     const hasText = Boolean(input.page?.text);
     const { copied } = await handOff(target, input, includeText && hasText ? 'content' : 'link');
     const paste = isMac() ? '⌘V' : 'Ctrl+V';
@@ -89,9 +102,11 @@ export function HandoffButtons({
 export function HandoffMenu({
   instruction,
   contextUrl,
+  selection,
 }: {
   instruction: string;
   contextUrl?: string;
+  selection?: SelectionSource;
 }) {
   const [open, setOpen] = useState(false);
   const id = useId();
@@ -114,7 +129,7 @@ export function HandoffMenu({
         >
           <p className="text-[0.8rem] font-medium">{t('handoff.menuTitle')}</p>
           <p className="mt-0.5 text-[0.75rem] text-muted">{t('handoff.menuBody')}</p>
-          <HandoffButtons instruction={instruction} contextUrl={contextUrl} />
+          <HandoffButtons instruction={instruction} contextUrl={contextUrl} selection={selection} />
         </div>
       )}
     </>
