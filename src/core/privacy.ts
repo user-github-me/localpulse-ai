@@ -72,14 +72,18 @@ const CARD_CANDIDATE = new RegExp(
   `(?<!\\p{Nd})(?<!\\p{Nd}-)(?:\\p{Nd}[ ${DASHES}]?){12,60}\\p{Nd}(?!\\p{Nd}|-\\p{Nd})`,
   'gv',
 );
-// Latin letters, capitals of other alphabets (as in the code "АБ0207946095"), "_" and digits next
-// to a number make it part of a code. Other letters don't: Hebrew or Arabic prefixes
-// ("ל0501234567"), full-width "ＴＥＬ", "Nº", or Japanese, Korean and Thai words around it.
-const CODE_CHAR = '[[A-Za-z_\\p{Nd}\\p{Lu}]--[\\uFF21-\\uFF3A]]';
+// Latin letters, capitals of other alphabets (as in the code "АБ0207946095"), digits, and "_"
+// joining a word (user_0207946095) next to a number make it part of a code. Other letters don't:
+// Hebrew or Arabic prefixes ("ל0501234567"), full-width "ＴＥＬ", "Nº", Japanese, Korean or Thai
+// words, or the "_" of Markdown italics (_0207946095_).
+const CODE_CHAR = '[[A-Za-z\\p{Nd}\\p{Lu}]--[\\uFF21-\\uFF3A]]';
 const PHONE_CANDIDATE = new RegExp(
-  `(?<!${CODE_CHAR}|\\+)(?:\\+|00)?\\p{Nd}[\\p{Nd} \\(\\)\\.\\/${DASHES}]{6,}\\p{Nd}(?!${CODE_CHAR})`,
+  `(?<!${CODE_CHAR}|\\+|[A-Za-z\\p{Nd}]_)(?:\\+|00|\\()?\\p{Nd}[\\p{Nd} \\(\\)\\.\\/${DASHES}]{6,}\\p{Nd}(?!${CODE_CHAR}|_[A-Za-z\\p{Nd}])`,
   'gv',
 );
+// Where one run holds several numbers: " / " between them, a space before "(" or "+", or two
+// spaces ("030 1234567 / 030 7654321", "(415) 555-0132 (415) 555-0133").
+const NUMBER_BREAK = /(\s*\/\s+|\s+\/\s*|\s+(?=[+(])|\s{2,})/;
 
 // The zero of each run of ten digits, for scripts whose digits pages use.
 const DIGIT_ZEROS = [
@@ -171,6 +175,17 @@ function cardIn(run: string): { start: number; end: number } | undefined {
   return undefined;
 }
 
+/**
+ * Whether a run of digits is a phone number. `before` is the text right before it: in Chinese
+ * text, a mobile number is often written without spaces ("手机：13800138000").
+ */
+function isPhone(run: string, before: string): boolean {
+  const shape = asciiShape(run).trim();
+  if (isIsbn13(shape.replace(/\D/g, ''))) return false;
+  if (/^1[3-9]\d{9}$/.test(shape) && /\p{Script=Han}/u.test(before)) return true;
+  return looksLikePhone(shape);
+}
+
 function looksLikePhone(match: string): boolean {
   const digits = match.replace(/\D/g, '');
   if (digits.length < 9 || digits.length > 15) return false;
@@ -258,10 +273,16 @@ export class Redactor {
       );
     });
     return result.replace(PHONE_CANDIDATE, (match, offset: number, whole: string) => {
-      const shape = asciiShape(match).trim();
-      if (!looksLikePhone(shape) || isIsbn13(shape.replace(/\D/g, ''))) return match;
       if (isbnBefore(whole, offset)) return match;
-      return this.label('phone', match);
+      if (isPhone(match, whole.slice(Math.max(0, offset - 12), offset))) {
+        return this.label('phone', match);
+      }
+      const parts = match.split(NUMBER_BREAK);
+      if (parts.length < 3) return match;
+      // Separators are at the odd places.
+      return parts
+        .map((part, i) => (i % 2 === 0 && isPhone(part, '') ? this.label('phone', part) : part))
+        .join('');
     });
   }
 

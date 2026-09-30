@@ -25,11 +25,14 @@ permissions changed.
   - never-send rules written as ".bank.com" work, and blob: pages count as the site that made
     them;
   - earlier answers don't go to an endpoint whose server address has changed;
-  - more details are hidden: emails in any script (Cyrillic, Devanagari, Khmer, accented names)
-    or stuck to Chinese, Japanese, Thai or Khmer text, emails in the addresses of several tabs,
-    phone numbers written with dots (415.555.0132), right next to Japanese, Korean, Thai, Hebrew or
-    Arabic words, or in full-width or Bengali digits, and card numbers after a dash or another
-    number; ISBNs aren't taken for phone or card numbers;
+  - more details are hidden:
+    - emails in any script (Cyrillic, Devanagari, Khmer, accented names), stuck to Chinese,
+      Japanese, Thai or Khmer text, or in the addresses of several tabs;
+    - phone numbers written with dots (415.555.0132), in italics, two to a line ("030 1234567 /
+      030 7654321"), right next to Japanese, Korean, Thai, Hebrew or Arabic words, in full-width
+      or Bengali digits, and Chinese mobile numbers written without spaces;
+    - card numbers after a dash or another number;
+    - ISBNs aren't taken for phone or card numbers;
   - Firefox: follow-up questions also need the website-content permission.
 - **Right-click and shortcut actions** read the page even when a file is open in the panel, keep
   their tab and selection for Try again and "Continue in", and aren't lost when two arrive
