@@ -13,7 +13,25 @@ env:
   COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
 
 jobs:
+  # Publishing a release on GitHub creates its tag, which starts this workflow again: then there is
+  # nothing to do.
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      exists: ${{ steps.release.outputs.exists }}
+    steps:
+      - id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "$GITHUB_REF_NAME already has a release, so nothing is built."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          fi
+
   release:
+    needs: check
+    if: needs.check.outputs.exists != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -61,7 +79,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          theme=$(grep -m1 . local/release-notes.md | sed 's/\.$//')
+          # The title: the first sentence of the notes, whose lines may be wrapped.
+          theme=$(awk '/./ { text = text (text ? " " : "") $0; next } text { exit } END { print text }' \
+            local/release-notes.md | sed -E 's/\. .*//; s/\.$//')
           gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
             --title "$GITHUB_REF_NAME — $theme" \
             --notes-file local/release-notes.md \
