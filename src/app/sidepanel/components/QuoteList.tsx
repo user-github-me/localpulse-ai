@@ -25,7 +25,7 @@ export function QuoteList({ item }: { item: ChatItem }) {
         {missing
           ? quotes.length === 1
             ? t('quotes.missing', 1)
-            : t('quotes.missingOf', { missing: String(missing), total: String(quotes.length) })
+            : t('quotes.missingOf', missing, { total: String(quotes.length) })
           : t('quotes.checked', found)}
       </button>
       {open && (

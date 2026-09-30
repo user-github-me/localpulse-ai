@@ -91,11 +91,42 @@ function remarkHtmlAsText() {
   return visit;
 }
 
-/** Renders model output as Markdown. Raw HTML shows as text and unsafe URLs are removed. */
-export const Markdown = memo(function Markdown({ text }: { text: string }) {
+/** Turns single line breaks into real ones, as in an email's sign-off ("Thanks,↵Sam"). */
+function remarkLineBreaks() {
+  const visit = (node: MarkdownNode) => {
+    if (!node.children) return;
+    node.children = node.children.flatMap((child) =>
+      child.type === 'text' && child.value?.includes('\n')
+        ? child.value
+            .split('\n')
+            .flatMap((part, index) => [
+              ...(index > 0 ? [{ type: 'break' }] : []),
+              { type: 'text', value: part },
+            ])
+        : [child],
+    );
+    node.children.forEach(visit);
+  };
+  return visit;
+}
+
+/**
+ * Renders model output as Markdown. Raw HTML shows as text and unsafe URLs are removed.
+ * `lineBreaks` keeps single line breaks, for rewritten or translated text.
+ */
+export const Markdown = memo(function Markdown({
+  text,
+  lineBreaks = false,
+}: {
+  text: string;
+  lineBreaks?: boolean;
+}) {
+  const plugins = lineBreaks
+    ? [remarkGfm, remarkHtmlAsText, remarkLineBreaks]
+    : [remarkGfm, remarkHtmlAsText];
   return (
     <div className="answer">
-      <ReactMarkdown remarkPlugins={[remarkGfm, remarkHtmlAsText]} components={components}>
+      <ReactMarkdown remarkPlugins={plugins} components={components}>
         {text}
       </ReactMarkdown>
     </div>

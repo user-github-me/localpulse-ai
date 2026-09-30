@@ -29,6 +29,12 @@ describe('Markdown', () => {
     expect(html).not.toContain('<page');
   });
 
+  it('keeps single line breaks when asked to, as for a rewritten email', () => {
+    expect(render('Thanks,\nSam')).not.toContain('<br');
+    const kept = renderToStaticMarkup(<Markdown text={'Thanks,\nSam'} lineBreaks />);
+    expect(kept).toMatch(/Thanks,<br\/>\s*Sam/);
+  });
+
   it('turns a plain <br> into a line break', () => {
     expect(render('one<br>two')).toMatch(/one<br\/>\s*two/);
   });

@@ -165,7 +165,7 @@ function Answer({ item }: { item: ChatItem }) {
         </p>
       )}
       {item.text ? (
-        <Markdown text={stripPageTags(item.text)} />
+        <Markdown text={stripPageTags(item.text)} lineBreaks={item.lineBreaks} />
       ) : (
         streaming && (
           <p className="text-sm text-muted">{item.status ?? t('conversation.thinking')}</p>

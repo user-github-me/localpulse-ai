@@ -68,6 +68,8 @@ export interface ChatItem {
   sources?: string[];
   /** Earlier turns not sent with this question because they may not go to its provider. */
   leftOut?: number;
+  /** A rewrite, proofread or translation: its single line breaks are part of the text. */
+  lineBreaks?: boolean;
 }
 
 /** Text chosen outside the panel, with the address of the page it's on. */
@@ -199,6 +201,11 @@ function describeState(state: ProviderState): string {
   }
 }
 
+/** The same text, ignoring differences in spacing and line breaks. */
+function sameText(a: string, b: string): boolean {
+  return a.replace(/\s+/g, ' ').trim() === b.replace(/\s+/g, ' ').trim();
+}
+
 /** Progress on long pages as text for the answer's status line. */
 function statusText(status: TurnStatus): string {
   if (!('part' in status)) {
@@ -315,9 +322,8 @@ export const usePanel = create<PanelState>()((set, get) => {
       queued = action;
       return;
     }
-    if (action.tabId !== undefined && action.tabId !== get().tab.tabId) {
-      await get().refreshTab(action.tabId);
-    }
+    // Read the tab again: the selection may be in a text field, where a rewrite can replace it.
+    if (action.tabId !== undefined) await get().refreshTab(action.tabId);
     await get().runRecipe(action.recipeId, {
       tabId: action.tabId,
       selection: action.selection
@@ -366,10 +372,15 @@ export const usePanel = create<PanelState>()((set, get) => {
         // Text from the context menu. Its own address decides the privacy rules, whatever the
         // panel shows, and the page around a frame from another site counts too.
         const samePage = !file && extracted !== undefined && extracted.url === override.url;
+        // The menu's copy of the selection loses line breaks; the page's own copy keeps them.
+        const exact =
+          samePage && extracted.selection && sameText(extracted.selection, override.text)
+            ? extracted.selection
+            : undefined;
         page = {
           title: samePage ? extracted.title : 'Selected text',
           url: override.url ?? '',
-          text: override.text,
+          text: exact ?? override.text,
           source: 'selection',
           lang: samePage ? extracted.lang : undefined,
         };
@@ -411,8 +422,11 @@ export const usePanel = create<PanelState>()((set, get) => {
 
     // A rewrite can replace the selection in its text field. Taken now: the tab may change
     // while the consent dialog is open.
+    const tabPage = get().file ? undefined : get().tab.page;
     const editableTabId =
-      page?.source === 'selection' && !override && get().tab.page?.selectionEditable
+      page?.source === 'selection' &&
+      tabPage?.selectionEditable &&
+      (!override || page.text === tabPage.selection)
         ? get().tab.tabId
         : undefined;
 
@@ -559,6 +573,7 @@ export const usePanel = create<PanelState>()((set, get) => {
           instruction,
           recipeId: recipe.id,
           context,
+          lineBreaks: recipe.mode === 'transform' || undefined,
         },
       ],
     }));

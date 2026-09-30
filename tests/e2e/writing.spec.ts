@@ -1,0 +1,101 @@
+import type { BrowserContext, Page } from '@playwright/test';
+import {
+  endpoint,
+  expect,
+  MOCK_LOCAL_API,
+  mockChatApi,
+  openPanel,
+  seedStorage,
+  test,
+} from './extension';
+
+// The `chrome` API inside page.evaluate() callbacks, which run in extension pages.
+declare const chrome: {
+  storage: { session: { set(items: Record<string, unknown>): Promise<void> } };
+  tabs: { query(query: { url: string }): Promise<{ id?: number }[]> };
+};
+
+const COMPOSE_URL = 'https://mail.test/compose';
+const DRAFT = "Hi team,\n\nwe're meeting tomorow at 10.\n\nThanks,\nSam";
+const FIXED = "Hi team,\n\nWe're meeting tomorrow at 10.\n\nThanks,\nSam";
+
+async function openDraft(context: BrowserContext): Promise<Page> {
+  await context.route(`${COMPOSE_URL}**`, (route) =>
+    route.fulfill({
+      body: `<!doctype html><html lang="en"><head><title>New message</title></head><body>
+        <textarea id="message" rows="8" cols="60"></textarea></body></html>`,
+      contentType: 'text/html; charset=utf-8',
+    }),
+  );
+  const page = await context.newPage();
+  await page.goto(COMPOSE_URL);
+  await page.evaluate((draft) => {
+    const field = document.getElementById('message') as HTMLTextAreaElement;
+    field.value = draft;
+    field.focus();
+    field.setSelectionRange(0, field.value.length);
+  }, DRAFT);
+  return page;
+}
+
+test('text selected in a field gets Proofread by default, keeps its line breaks and goes back in', async ({
+  context,
+  extensionId,
+}) => {
+  const requests = await mockChatApi(context, MOCK_LOCAL_API, () => FIXED);
+  // Default quick actions: Proofread and Rewrite aren't among them.
+  await seedStorage(context, extensionId, {
+    settings: {
+      endpoints: [endpoint('ep:local', MOCK_LOCAL_API, 'Local Mock')],
+      onboardingComplete: true,
+    },
+  });
+  const draft = await openDraft(context);
+  const panel = await openPanel(context, extensionId, draft);
+  await expect(panel.getByText(/Your selection/)).toBeVisible();
+  await expect(panel.getByRole('button', { name: 'Rewrite' })).toBeVisible();
+  await panel.getByRole('button', { name: 'Proofread' }).click();
+
+  // "Thanks," and "Sam" stay on separate lines, as they will be in the field.
+  await expect(panel.locator('.answer p', { hasText: 'Thanks,' }).locator('br')).toHaveCount(1);
+  expect(requests[0]?.body.messages.at(-1)?.content).toContain(DRAFT);
+  await panel.getByRole('button', { name: 'Replace selection' }).click();
+  await expect(panel.getByText('Replaced the selected text on the page.')).toBeVisible();
+  expect(await draft.locator('#message').inputValue()).toBe(FIXED);
+});
+
+test('right-click Proofread on a field uses its exact text and offers Replace', async ({
+  context,
+  extensionId,
+}) => {
+  const requests = await mockChatApi(context, MOCK_LOCAL_API, () => FIXED);
+  await seedStorage(context, extensionId, {
+    settings: {
+      endpoints: [endpoint('ep:local', MOCK_LOCAL_API, 'Local Mock')],
+      onboardingComplete: true,
+    },
+  });
+  const draft = await openDraft(context);
+  const panel = await openPanel(context, extensionId, draft);
+  await expect(panel.getByText(/Your selection/)).toBeVisible();
+  // What the context menu hands over: its copy of the selection has no line breaks.
+  await panel.evaluate(
+    async ({ url, text }) => {
+      const [tab] = await chrome.tabs.query({ url });
+      await chrome.storage.session.set({
+        pendingAction: {
+          id: 'menu-proofread',
+          recipeId: 'proofread',
+          tabId: tab?.id,
+          selection: text,
+          url,
+          pageUrl: url,
+          createdAt: Date.now(),
+        },
+      });
+    },
+    { url: COMPOSE_URL, text: DRAFT.replace(/\s+/g, ' ') },
+  );
+  await expect(panel.getByRole('button', { name: 'Replace selection' })).toBeVisible();
+  expect(requests[0]?.body.messages.at(-1)?.content).toContain(DRAFT);
+});

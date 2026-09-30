@@ -21,6 +21,7 @@ const MENU_ITEMS = [
   },
   { id: 'lp-simplify', title: 'menu.simplify', contexts: ['selection'], recipeId: 'simplify' },
   { id: 'lp-rewrite', title: 'menu.rewrite', contexts: ['selection'], recipeId: 'rewrite' },
+  { id: 'lp-proofread', title: 'menu.proofread', contexts: ['selection'], recipeId: 'proofread' },
   { id: 'lp-translate', title: 'menu.translate', contexts: ['selection'], recipeId: 'translate' },
 ] as const;
 

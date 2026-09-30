@@ -31,6 +31,9 @@ export const RECIPE_ICONS: Record<string, LucideIcon> = {
   columns: Columns2,
 };
 
+/** Offered whenever the selected text is in a text field, where the result can replace it. */
+const WRITING_TOOLS = ['proofread', 'rewrite'];
+
 /** Quick actions as chips. */
 export function ActionRow() {
   const runRecipe = usePanel((state) => state.runRecipe);
@@ -41,9 +44,15 @@ export function ActionRow() {
   const hasFile = usePanel((state) => state.file !== null);
   const disabled = busy || (status === 'no-access' && !hasFile);
   const hasExtraTabs = usePanel((state) => state.extraTabs.length > 0);
+  const editing = usePanel(
+    (state) => state.file === null && Boolean(state.tab.page?.selectionEditable),
+  );
   const ids = quickActions ?? DEFAULT_SETTINGS.quickActions;
-  // With several tabs chosen, offer Compare first.
-  const recipes = (hasExtraTabs && !ids.includes('compare') ? ['compare', ...ids] : ids)
+  // Text selected in a field: offer the writing tools first. With several tabs, offer Compare.
+  const first = [...(editing ? WRITING_TOOLS : []), ...(hasExtraTabs ? ['compare'] : [])].filter(
+    (id) => !ids.includes(id),
+  );
+  const recipes = [...first, ...ids]
     .map((id) => recipeById(id, customRecipes))
     .filter((recipe): recipe is Recipe => recipe !== undefined);
   if (recipes.length === 0) return null;

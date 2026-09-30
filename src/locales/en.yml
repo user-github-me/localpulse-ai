@@ -34,6 +34,7 @@ menu:
   summarize: Summarize
   simplify: Simplify
   rewrite: Rewrite more clearly
+  proofread: Proofread
   translate: Translate
 
 status:
@@ -167,7 +168,9 @@ quotes:
   missing:
     1: $1 quote is not on the page
     n: $1 quotes are not on the page
-  missingOf: '{missing} of {total} quotes are not on the page'
+  missingOf:
+    1: '1 of {total} quotes is not on the page'
+    n: '$1 of {total} quotes are not on the page'
   checked:
     1: 1 quote checked against the page
     n: $1 quotes checked against the page

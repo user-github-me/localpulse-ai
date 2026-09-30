@@ -369,7 +369,7 @@ test('checks quotes in answers against the page', async ({ context, extensionId,
     .getByRole('textbox', { name: 'Ask about this page' })
     .fill('What can compute shaders do?');
   await panel.keyboard.press('Enter');
-  const summary = panel.getByRole('button', { name: '1 of 2 quotes are not on the page' });
+  const summary = panel.getByRole('button', { name: '1 of 2 quotes is not on the page' });
   await expect(summary).toBeVisible();
   await summary.click();
   await expect(panel.getByText('Not found on the page: treat this quote with care.')).toBeVisible();
