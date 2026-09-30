@@ -723,11 +723,14 @@ export const usePanel = create<PanelState>()((set, get) => {
           );
           const answerText = redactor.restore(written);
           const hidden = redactor.valuesIn(written);
+          // A rewrite or translation must keep every value hidden in the text it was written
+          // from (not in the tab's title or address, which it doesn't contain).
+          const hiddenInText = redaction ? redactor.valuesIn(redaction.page.text) : [];
           const unrestored =
-            redact &&
             recipe.mode === 'transform' &&
+            hiddenInText.length > 0 &&
             (hasPlaceholder(answerText) ||
-              redactor.values().some(({ value }) => !answerText.includes(value)));
+              hiddenInText.some(({ value }) => !answerText.includes(value)));
           patchItem(answerId, {
             text: answerText,
             hidden: hidden.length ? hidden : undefined,

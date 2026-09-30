@@ -46,35 +46,38 @@ export interface RedactionResult {
   count: number;
 }
 
-// Scripts written without spaces between words. Their letters right next to an address or a
-// number don't make it part of a longer word.
+// Chinese, Japanese, Korean and Thai are written without spaces, and addresses in them are rare:
+// their letters next to an address aren't part of it ("请联系jane@example.com了解详情").
+const CJK_THAI =
+  '\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Hangul}\\p{Script=Thai}';
+// Other scripts written without spaces may be part of an address, but never of its ending.
 const NO_SPACES =
-  '\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Hangul}\\p{Script=Thai}' +
-  '\\p{Script=Lao}\\p{Script=Khmer}\\p{Script=Myanmar}\\p{Script=Tibetan}\\p{Script=Javanese}' +
-  '\\p{Script=Balinese}';
-/** Letters of scripts that put spaces between words, such as Latin or Cyrillic. */
-const SPACED_LETTER = `[\\p{L}--[${NO_SPACES}]]`;
-const NAME = `[[\\p{L}\\p{M}\\p{N}._%+\\-]--[${NO_SPACES}]]`;
-const LABEL = `[[\\p{L}\\p{M}\\p{N}\\-]--[${NO_SPACES}]]`;
+  `${CJK_THAI}\\p{Script=Lao}\\p{Script=Khmer}\\p{Script=Myanmar}\\p{Script=Tibetan}` +
+  '\\p{Script=Javanese}\\p{Script=Balinese}';
+const NAME = `[[\\p{L}\\p{M}\\p{N}._%+\\-]--[${CJK_THAI}]]`;
+const LABEL = `[[\\p{L}\\p{M}\\p{N}\\-]--[${CJK_THAI}]]`;
 const TOP = `(?:[[\\p{L}\\p{M}]--[${NO_SPACES}]]{2,24}|中国|中國|香港|台灣|台湾)`;
 const DOMAIN = `@${LABEL}{1,63}(?:\\.${LABEL}{1,63}){0,8}\\.${TOP}`;
 // Emails in any script (Cyrillic, Devanagari…), found where a run of name characters starts and
 // with bounded parts, so it stays linear.
 const EMAIL = new RegExp(`(?<!${NAME})${NAME}{1,64}${DOMAIN}`, 'gv');
-// Then ASCII names stuck to other text, which the first pass can't separate from it.
+// Then ASCII names stuck to other text, such as a long run of Khmer, which the first pass can't
+// separate from it.
 const ASCII_EMAIL = new RegExp(`(?<![A-Za-z0-9._%+\\-])[A-Za-z0-9._%+\\-]{1,64}${DOMAIN}`, 'gv');
 // Digits in any script (full-width, Bengali, Arabic-Indic…) and any kind of dash between them.
 const DASHES = '\\-\\u2010-\\u2015\\u2212\\uFF0D';
-// A dash next to the number only matters when a digit is on its other side: then the number is
-// part of a longer one.
+// A whole run of digit groups, so a card after another number ("Order 1234 4111 1111…") is found
+// in it. A dash next to the run only matters when a digit is on its other side.
 const CARD_CANDIDATE = new RegExp(
-  `(?<!\\p{Nd})(?<!\\p{Nd}-)(?:\\p{Nd}[ ${DASHES}]?){12,18}\\p{Nd}(?!\\p{Nd}|-\\p{Nd})`,
+  `(?<!\\p{Nd})(?<!\\p{Nd}-)(?:\\p{Nd}[ ${DASHES}]?){12,60}\\p{Nd}(?!\\p{Nd}|-\\p{Nd})`,
   'gv',
 );
-// Letters of spaced scripts, "_" and digits next to a number make it part of a code or ID; letters
-// of the others don't ("お問い合わせは03-1234-5678まで", "010-1234-5678로").
+// Latin letters, capitals of other alphabets (as in the code "АБ0207946095"), "_" and digits next
+// to a number make it part of a code. Other letters don't: Hebrew or Arabic prefixes
+// ("ל0501234567"), full-width "ＴＥＬ", "Nº", or Japanese, Korean and Thai words around it.
+const CODE_CHAR = '[[A-Za-z_\\p{Nd}\\p{Lu}]--[\\uFF21-\\uFF3A]]';
 const PHONE_CANDIDATE = new RegExp(
-  `(?<![${SPACED_LETTER}_+\\p{Nd}])(?:\\+|00)?\\p{Nd}[\\p{Nd} \\(\\)\\.\\/${DASHES}]{6,}\\p{Nd}(?![${SPACED_LETTER}_\\p{Nd}])`,
+  `(?<!${CODE_CHAR}|\\+)(?:\\+|00)?\\p{Nd}[\\p{Nd} \\(\\)\\.\\/${DASHES}]{6,}\\p{Nd}(?!${CODE_CHAR})`,
   'gv',
 );
 
@@ -112,6 +115,11 @@ function luhnValid(digits: string): boolean {
   return sum % 10 === 0;
 }
 
+/** Whether "ISBN" comes right before this point of the text. */
+function isbnBefore(text: string, offset: number): boolean {
+  return /\bISBN(?:-1[03])?:?\s*$/i.test(text.slice(Math.max(0, offset - 12), offset));
+}
+
 /** An ISBN-13 ("978-0-306-40615-7") has the shape of a phone number, but its check digit gives it away. */
 function isIsbn13(digits: string): boolean {
   if (digits.length !== 13 || !/^97[89]/.test(digits)) return false;
@@ -119,9 +127,21 @@ function isIsbn13(digits: string): boolean {
   return sum % 10 === 0;
 }
 
+/** How cards are written: 4-4-4-4 (with a short tail up to 19 digits), 4-6-5, 4-6-4, or unbroken. */
+function cardGrouping(lengths: readonly number[]): boolean {
+  const shape = lengths.join('-');
+  return (
+    /^1[3-9]$/.test(shape) ||
+    /^4-4-4-(?:[1-4]|4-[1-3])$/.test(shape) ||
+    shape === '4-6-5' ||
+    shape === '4-6-4'
+  );
+}
+
 /**
- * A card number in a run of digit groups: the whole run, or else the longest stretch of whole
- * groups, so "1 4111 1111 1111 1111" still hides the card.
+ * The card number in a run of digit groups: the whole run when it has 13 to 19 digits, or else a
+ * stretch of whole groups written the way cards are, so "Order 1234 4111 1111 1111 1111" hides the
+ * card but a list of page numbers stays.
  */
 function cardIn(run: string): { start: number; end: number } | undefined {
   const groups = [...run.matchAll(/\p{Nd}+/gu)].map((m) => ({
@@ -136,8 +156,14 @@ function cardIn(run: string): { start: number; end: number } | undefined {
     for (let first = 0; first + size <= groups.length; first++) {
       const length = (before[first + size] ?? 0) - (before[first] ?? 0);
       if (length < 13 || length > 19) continue;
+      // Part of the run: written as cards are, which always starts with four digits when grouped.
+      if (size < groups.length && size > 1 && groups[first]?.digits.length !== 4) continue;
       const stretch = groups.slice(first, first + size);
-      if (luhnValid(stretch.map((group) => group.digits).join(''))) {
+      if (size < groups.length && !cardGrouping(stretch.map((group) => group.digits.length))) {
+        continue;
+      }
+      const digits = stretch.map((group) => group.digits).join('');
+      if (luhnValid(digits) && !isIsbn13(digits)) {
         return { start: stretch[0]?.start ?? 0, end: stretch.at(-1)?.end ?? 0 };
       }
     }
@@ -148,7 +174,9 @@ function cardIn(run: string): { start: number; end: number } | undefined {
 function looksLikePhone(match: string): boolean {
   const digits = match.replace(/\D/g, '');
   if (digits.length < 9 || digits.length > 15) return false;
-  // Dates, version numbers and plain large numbers are not phone numbers.
+  // Phone numbers written with dots: "415.555.0132" (US), "06.12.34.56.78" (France).
+  if (/^(?:\d{1,3}\.)?\d{3}\.\d{3}\.\d{4}$|^0\d(?:\.\d{2}){4}$/.test(match)) return true;
+  // Dates, version numbers, IP addresses and plain large numbers are not phone numbers.
   if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(match)) return false;
   if (/^\d{1,3}(\.\d+){2,}$/.test(match)) return false;
   if (/^\d{1,3}(,\d{3})+$/.test(match)) return false;
@@ -169,7 +197,8 @@ export interface HiddenValue {
  * A placeholder as a model may write it back: "[email 1]", "[Email 1]", "［phone ２］",
  * "[PHONE_2]"…
  */
-const PLACEHOLDER = /[[［]\s*(email|e-mail|phone|card number|card)[\s_-]*(\p{Nd}+)\s*[\]］]/giu;
+const PLACEHOLDER =
+  /[[［]\s*(email|e-mail|phone|card[\s_-]*number|card)[\s_-]*(\p{Nd}+)\s*[\]］]/giu;
 /**
  * Link and image addresses, where a hidden value must never be put back: loading or clicking one
  * would send it to that site. A Markdown target may itself hold placeholders ("[email 1]").
@@ -218,8 +247,8 @@ export class Redactor {
     }
     result = result.replace(EMAIL, (match) => this.label('email', match));
     result = result.replace(ASCII_EMAIL, (match) => this.label('email', match));
-    result = result.replace(CARD_CANDIDATE, (match) => {
-      const card = cardIn(match);
+    result = result.replace(CARD_CANDIDATE, (match, offset: number, whole: string) => {
+      const card = isbnBefore(whole, offset) ? undefined : cardIn(match);
       if (!card) return match;
       const { start, end } = card;
       return (
@@ -231,23 +260,19 @@ export class Redactor {
     return result.replace(PHONE_CANDIDATE, (match, offset: number, whole: string) => {
       const shape = asciiShape(match).trim();
       if (!looksLikePhone(shape) || isIsbn13(shape.replace(/\D/g, ''))) return match;
-      if (/\bISBN(?:-1[03])?:?\s*$/i.test(whole.slice(Math.max(0, offset - 12), offset)))
-        return match;
+      if (isbnBefore(whole, offset)) return match;
       return this.label('phone', match);
     });
   }
 
   private original(kind: string, number: string): HiddenValue | undefined {
-    const name = kind
-      .toLowerCase()
-      .replace('e-mail', 'email')
-      .replace(/^card$/, 'card number');
+    const lower = kind.toLowerCase();
+    const name = lower.startsWith('card')
+      ? 'card number'
+      : lower.startsWith('e')
+        ? 'email'
+        : 'phone';
     return this.originals.get(`[${name} ${Number(asciiShape(number))}]`);
-  }
-
-  /** Every value hidden so far. */
-  values(): HiddenValue[] {
-    return [...this.originals.values()];
   }
 
   /** Puts the real values back where an answer uses the placeholders, except inside links. */

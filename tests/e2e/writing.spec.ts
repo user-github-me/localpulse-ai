@@ -20,10 +20,14 @@ const COMPOSE_URL = 'https://mail.test/compose';
 const DRAFT = "Hi team,\n\nwe're meeting tomorow at 10.\n\nThanks,\nSam";
 const FIXED = "Hi team,\n\nWe're meeting tomorrow at 10.\n\nThanks,\nSam";
 
-async function openDraft(context: BrowserContext, text = DRAFT): Promise<Page> {
+async function openDraft(
+  context: BrowserContext,
+  text = DRAFT,
+  title = 'New message',
+): Promise<Page> {
   await context.route(`${COMPOSE_URL}**`, (route) =>
     route.fulfill({
-      body: `<!doctype html><html lang="en"><head><title>New message</title></head><body>
+      body: `<!doctype html><html lang="en"><head><title>${title}</title></head><body>
         <textarea id="message" rows="8" cols="60"></textarea></body></html>`,
       contentType: 'text/html; charset=utf-8',
     }),
@@ -169,4 +173,37 @@ test('Replace refuses text where the cloud model changed the placeholder of a hi
   expect(await page.locator('#message').inputValue()).toBe(
     'Hi team,\n\nWrite to jane@mail.test tomorrow.\n\nThanks,\nSam',
   );
+});
+
+test("an address in the tab title, hidden from the cloud, doesn't stop Replace", async ({
+  context,
+  extensionId,
+}) => {
+  const cloud = await mockChatApi(
+    context,
+    MOCK_API,
+    () => 'Hey, can you send me the report tomorrow?',
+  );
+  await seedStorage(context, extensionId, {
+    settings: {
+      endpoints: [endpoint('ep:mock', MOCK_API, 'Mock Cloud')],
+      onboardingComplete: true,
+    },
+    apiKeys: { 'ep:mock': 'test-key' },
+    cloudConsent: { always: ['ep:mock'], sites: {} },
+  });
+  const page = await openDraft(
+    context,
+    'hey can u send me the report tmrw',
+    'Inbox (3) - jane@mail.test - Mail',
+  );
+  const panel = await openPanel(context, extensionId, page);
+  await expect(panel.getByText(/Your selection/)).toBeVisible();
+  await panel.getByRole('button', { name: 'Proofread' }).click();
+  await panel.getByRole('button', { name: 'Replace selection' }).click();
+  await expect(panel.getByText('Replaced the selected text on the page.')).toBeVisible();
+  expect(await page.locator('#message').inputValue()).toBe(
+    'Hey, can you send me the report tomorrow?',
+  );
+  expect(JSON.stringify(cloud[0]?.body.messages)).not.toContain('jane@mail.test');
 });

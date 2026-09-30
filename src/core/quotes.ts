@@ -32,8 +32,8 @@ function isJamoTail(code: number): boolean {
 
 /**
  * Makes small differences not count: letter case, full-width forms, quote marks, emphasis, the
- * kind of dash and the spaces around it, punctuation such as commas in any language, and the
- * Markdown that starts a line ("> ", "- ", "1. "). Numbers keep their decimal points ("1.5" isn't
+ * kind of dash and the spaces around it, punctuation such as commas in any language, and the quote
+ * bars and bullets that start Markdown lines. Numbers keep their decimal points ("1.5" isn't
  * "15"), and currency and math signs stay.
  */
 function normalize(original: string): Normalized {
@@ -57,6 +57,11 @@ function normalize(original: string): Normalized {
   let previous = '';
   let afterDash = false;
   let lineStart = true;
+  // Markdown quote bars and bullets start a line after a blank line or another such line. Text
+  // from a PDF breaks lines anywhere, so elsewhere a "-" or ">" at the start of a line is text.
+  let markerAllowed = true;
+  let lineHasText = false;
+  let lineWasMarker = false;
   let i = 0;
   while (i < original.length) {
     const start = i;
@@ -73,16 +78,16 @@ function normalize(original: string): Normalized {
     const ascii = code < 0x80 && i - start === 1;
     if (lineStart && !/^\s$/.test(raw)) {
       lineStart = false;
-      // Markdown the page's text starts lines with: quote bars, bullets and numbers of lists.
-      const marker = /^(?:>[ \t]*)+|^(?:[-*+]|\d{1,3}[.)])(?=[ \t])/.exec(
-        original.slice(start, start + 8),
-      );
+      const marker = markerAllowed
+        ? /^(?:>[ \t]?)+(?:[-*+](?=[ \t]))?|^[-*+](?=[ \t])/.exec(original.slice(start, start + 16))
+        : null;
       if (marker) {
         i = start + marker[0].length;
+        lineWasMarker = true;
         previous = ' ';
-        lineStart = marker[0].startsWith('>');
         continue;
       }
+      lineHasText = true;
     }
     if (ascii && /[a-z0-9]/i.test(raw)) {
       push(raw.toLowerCase(), start, i);
@@ -94,7 +99,12 @@ function normalize(original: string): Normalized {
     if (/^\s+$/.test(char)) {
       // Spaces after a dash don't count, however many.
       if (out.length && !afterDash && out[out.length - 1] !== ' ') push(' ', start, i);
-      if (raw === '\n') lineStart = true;
+      if (raw === '\n') {
+        markerAllowed = !lineHasText || lineWasMarker;
+        lineStart = true;
+        lineHasText = false;
+        lineWasMarker = false;
+      }
       previous = raw;
       continue;
     } else if (IGNORED.test(char)) {
@@ -150,13 +160,33 @@ function isGershayim(text: string, index: number): boolean {
   );
 }
 
+/** For each position, whether `mark` comes later on the same line. */
+function laterOnLine(text: string, mark: string): boolean[] {
+  const later = new Array<boolean>(text.length).fill(false);
+  for (let i = text.length - 2; i >= 0; i--) {
+    const next = text[i + 1];
+    later[i] = next !== '\n' && (next === mark || (later[i + 1] ?? false));
+  }
+  return later;
+}
+
 /**
  * Text between quote marks, read from left to right, so a closing mark never opens a quote. A
  * quote inside a quote (the "fast path" in “the so-called "fast path" is off”) stays part of it.
+ * Models sometimes mix marks (“like this"): a straight mark closes a curly quote when no ” follows
+ * on the line, and the other way round.
  */
 function quotedSpans(answer: string): { text: string; mark: string }[] {
   const spans: { text: string; mark: string }[] = [];
   const open: { mark: string; start: number }[] = [];
+  const curlyLater = laterOnLine(answer, '”');
+  const straightLater = laterOnLine(answer, '"');
+  const close = (level: number, end: number) => {
+    const closed = open[level];
+    open.length = level;
+    if (level === 0 && closed)
+      spans.push({ text: answer.slice(closed.start, end), mark: closed.mark });
+  };
   for (let i = 0; i < answer.length; i++) {
     const char = answer[i] ?? '';
     if (char === '\n') {
@@ -167,11 +197,13 @@ function quotedSpans(answer: string): { text: string; mark: string }[] {
     // The innermost open quote that this mark closes, if any.
     let level = open.length - 1;
     while (level >= 0 && !CLOSERS[open[level]?.mark ?? '']?.includes(char)) level--;
+    const top = open.at(-1)?.mark;
     if (level >= 0) {
-      const closed = open[level];
-      open.length = level;
-      if (level === 0 && closed)
-        spans.push({ text: answer.slice(closed.start, i), mark: closed.mark });
+      close(level, i);
+    } else if (char === '"' && top === '“' && !curlyLater[i]) {
+      close(open.length - 1, i);
+    } else if (char === '”' && top === '"' && !straightLater[i]) {
+      close(open.length - 1, i);
     } else if (char in CLOSERS) {
       open.push({ mark: char, start: i + 1 });
     }

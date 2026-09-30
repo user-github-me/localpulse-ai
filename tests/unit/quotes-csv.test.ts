@@ -61,6 +61,21 @@ describe('quote pairs', () => {
     ]);
   });
 
+  it('reads mixed pairs of straight and curly marks when the proper mark never comes', () => {
+    expect(
+      extractQuotes(
+        'He wrote “the plan is bad" and then "we should stop the whole project now".\n' +
+          'It says "the plan is really bad” and more.\n' +
+          'It says “the 12" pizza is big and tasty” here.',
+      ),
+    ).toEqual([
+      'the plan is bad',
+      'we should stop the whole project now',
+      'the plan is really bad',
+      'the 12" pizza is big and tasty',
+    ]);
+  });
+
   it('takes a " between Hebrew letters for an abbreviation, not the end of a quote', () => {
     expect(extractQuotes('נאמר "צה"ל הודיע כי המבצע הסתיים היום" בדיווח.')).toEqual([
       'צה"ל הודיע כי המבצע הסתיים היום',
@@ -101,6 +116,31 @@ describe('quote matching', () => {
       true,
     );
     expect(normalizeForMatch('- first item\n- second item')).toBe('first item second item');
+  });
+
+  it('reads line starts in PDF text as text: only Markdown lists and quotes have markers', () => {
+    const pdf = [
+      'Under Section\n5. The tenant shall pay the rent on time.',
+      'The results\n- which surprised everyone -\nwere strong',
+      'A trial with\n>50 participants in the study',
+    ].join('\n\n');
+    for (const quote of [
+      'Under Section 5. The tenant shall pay the rent',
+      'The results - which surprised everyone - were strong',
+      'with >50 participants in the study',
+    ]) {
+      expect(checkQuotes(`"${quote}"`, pdf)[0]?.found).toBe(true);
+    }
+    const list = 'Steps:\n\n- Preheat the oven to 200 degrees\n- Mix the flour and the eggs';
+    expect(checkQuotes('"Preheat the oven to 200 degrees Mix the flour"', list)[0]?.found).toBe(
+      true,
+    );
+  });
+
+  it('never drops the number a quote starts with', () => {
+    const page = 'Die Regel gilt ab dem 1. Juli 2024 für alle Betriebe in Bayern.';
+    expect(checkQuotes('„2. Juli 2024 für alle Betriebe in Bayern“', page)[0]?.found).toBe(false);
+    expect(checkQuotes('„1. Juli 2024 für alle Betriebe in Bayern“', page)[0]?.found).toBe(true);
   });
 
   it('ignores any spaces after a dash, even across lines', () => {

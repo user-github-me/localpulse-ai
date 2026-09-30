@@ -91,6 +91,41 @@ describe('Redactor', () => {
     }
   });
 
+  it('hides phone numbers right after Hebrew, Arabic, Cyrillic or full-width letters', () => {
+    expect(redactSensitive('חייגו ל0501234567').text).toBe('חייגו ל[phone 1]');
+    expect(redactSensitive('اتصل ب0501234567').text).toBe('اتصل ب[phone 1]');
+    expect(redactSensitive('ＴＥＬ03-1234-5678').text).toBe('ＴＥＬ[phone 1]');
+    expect(redactSensitive('Nº0612345678').text).toBe('Nº[phone 1]');
+    expect(redactSensitive('тел+74951234567').text).toBe('тел[phone 1]');
+  });
+
+  it('hides phone numbers written with dots, but not IP addresses or versions', () => {
+    expect(redactSensitive('Phone: 415.555.0132').text).toBe('Phone: [phone 1]');
+    expect(redactSensitive('Tel 06.12.34.56.78').text).toBe('Tel [phone 1]');
+    expect(redactSensitive('IP 192.168.100.200, version 1.22.3.4').count).toBe(0);
+  });
+
+  it('finds a card after another number, but leaves lists of small numbers', () => {
+    for (const before of ['Order 1234', 'Exp 12/2027', 'ZIP 94105']) {
+      expect(redactSensitive(`${before} 4111 1111 1111 1111`).text).toBe(
+        `${before} [card number 1]`,
+      );
+    }
+    expect(redactSensitive('Amex 3782 822463 10005').text).toBe('Amex [card number 1]');
+    for (const text of [
+      'Pages: 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15',
+      'Fibonacci: 1 1 2 3 5 8 13 21 34 55 89 144',
+      'ISBN 978-1-4028-9462-6',
+    ]) {
+      expect(redactSensitive(text).text).toBe(text);
+    }
+  });
+
+  it('hides addresses with Khmer names or domains', () => {
+    expect(redactSensitive('ឈ្មោះ@example.com').text).toBe('[email 1]');
+    expect(redactSensitive('info@ក្រសួង.com').text).toBe('[email 1]');
+  });
+
   it('leaves ISBNs and codes with Cyrillic letters alone', () => {
     for (const text of [
       'Артикул АБ0207946095',
@@ -123,6 +158,10 @@ describe('Redactor', () => {
     redactor.redact('Call 020 7946 0958');
     expect(redactor.restore('[PHONE_1], [phone １], [Phone 01]')).toBe(
       '020 7946 0958, 020 7946 0958, 020 7946 0958',
+    );
+    redactor.redact('Card 4111 1111 1111 1111');
+    expect(redactor.restore('[CARD_NUMBER_1] or [card-number-1]')).toBe(
+      '4111 1111 1111 1111 or 4111 1111 1111 1111',
     );
     // A translated label can't be put back; Replace checks for the value itself (store.ts).
     expect(redactor.restore('[teléfono 1]')).toBe('[teléfono 1]');

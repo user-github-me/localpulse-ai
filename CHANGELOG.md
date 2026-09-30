@@ -25,10 +25,11 @@ permissions changed.
   - never-send rules written as ".bank.com" work, and blob: pages count as the site that made
     them;
   - earlier answers don't go to an endpoint whose server address has changed;
-  - more details are hidden: emails in any script (Cyrillic, Devanagari, accented names) or stuck
-    to Chinese, Japanese, Thai or Khmer text, emails in the addresses of several tabs, phone
-    numbers next to Japanese, Korean or Thai text or in full-width or Bengali digits, and card
-    numbers after a dash or next to another number; ISBNs aren't taken for phone numbers;
+  - more details are hidden: emails in any script (Cyrillic, Devanagari, Khmer, accented names)
+    or stuck to Chinese, Japanese, Thai or Khmer text, emails in the addresses of several tabs,
+    phone numbers written with dots (415.555.0132), right next to Japanese, Korean, Thai, Hebrew or
+    Arabic words, or in full-width or Bengali digits, and card numbers after a dash or another
+    number; ISBNs aren't taken for phone or card numbers;
   - Firefox: follow-up questions also need the website-content permission.
 - **Right-click and shortcut actions** read the page even when a file is open in the panel, keep
   their tab and selection for Try again and "Continue in", and aren't lost when two arrive
@@ -40,10 +41,10 @@ permissions changed.
     and say why, naming the languages, when nothing can translate the text;
   - lists and quotes in Arabic or Hebrew answers read right to left.
 - **Checked quotes:** numbers must match ("1.5" isn't "15"), while the kind of dash or minus sign
-  and the page's quote bars and list bullets don't count. Quotes inside quotes stay whole, German
-  and French quote marks are read, Hebrew abbreviations aren't taken for quote marks, and Japanese
-  titles and short terms aren't checked as quotes. Show on page finds a quote by the page's own
-  wording.
+  and the page's quote bars and list bullets don't count. Quotes inside quotes stay whole; mixed
+  straight and curly marks and German and French quote marks are read; Hebrew abbreviations aren't
+  taken for quote marks, and Japanese titles and short terms aren't checked as quotes. Show on page
+  finds a quote by the page's own wording.
 - Questions about long pages find sections that use a word with an apostrophe ("user's").
 - Requests that were too large are retried with smaller parts for the summarizer and translator
   too.
