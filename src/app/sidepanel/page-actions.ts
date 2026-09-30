@@ -3,7 +3,7 @@ import { browser } from '#imports';
 // Functions injected into the page with executeScript({ func }). They're serialized, so each must
 // be self-contained: no imports and no outside variables.
 
-function findAndSelect(quote: string): boolean {
+function findAndSelect(quotes: string[]): boolean {
   const find = (
     window as Window & {
       find?: (
@@ -16,9 +16,12 @@ function findAndSelect(quote: string): boolean {
   ).find;
   if (!find) return false;
   window.getSelection()?.removeAllRanges();
-  const words = quote.split(/\s+/);
-  // The full quote first, then shorter openings in case formatting splits it on the page.
-  for (const text of [quote, words.slice(0, 10).join(' '), words.slice(0, 6).join(' ')]) {
+  // Each full quote first, then shorter openings in case formatting splits it on the page.
+  const openings = quotes.flatMap((quote) => {
+    const words = quote.split(/\s+/);
+    return [words.slice(0, 10).join(' '), words.slice(0, 6).join(' ')];
+  });
+  for (const text of [...quotes, ...openings]) {
     if (text && find.call(window, text, false, false, true)) {
       window.getSelection()?.anchorNode?.parentElement?.scrollIntoView({ block: 'center' });
       return true;
@@ -63,12 +66,12 @@ function replaceSelection(
 }
 
 /** Scrolls to a quote in the page and selects it, so the user can see it in context. */
-export async function showQuoteInPage(tabId: number, quote: string): Promise<boolean> {
+export async function showQuoteInPage(tabId: number, quotes: string[]): Promise<boolean> {
   try {
     const [result] = await browser.scripting.executeScript({
       target: { tabId },
       func: findAndSelect,
-      args: [quote],
+      args: [quotes],
     });
     return Boolean(result?.result);
   } catch {

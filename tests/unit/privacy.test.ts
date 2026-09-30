@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canonicalHost,
+  hasPlaceholder,
   isNeverCloudSite,
   normalizeSiteRule,
   redactPage,
@@ -61,6 +62,61 @@ describe('Redactor', () => {
     expect(redactSensitive('电话：０２０ ７９４６ ０９５８。').text).toBe('电话：[phone 1]。');
     expect(redactSensitive('ফোন: ০১৭১১-২৩৪৫৬৭').text).toBe('ফোন: [phone 1]');
     expect(redactSensitive('Tel 020‐7946‐0958').text).toBe('Tel [phone 1]');
+  });
+
+  it('hides phone numbers written right next to Japanese, Korean or Thai words', () => {
+    expect(redactSensitive('お問い合わせは03-1234-5678まで').text).toBe(
+      'お問い合わせは[phone 1]まで',
+    );
+    expect(redactSensitive('010-1234-5678로 연락').text).toBe('[phone 1]로 연락');
+    expect(redactSensitive('โทร02-123-4567ค่ะ').text).toBe('โทร[phone 1]ค่ะ');
+    // Latin letters next to digits still make them a code, not a phone number.
+    expect(redactSensitive('SKU AB0207946095 and x020-7946-0958y').count).toBe(0);
+  });
+
+  it('hides card numbers after a dash', () => {
+    expect(redactSensitive('Card—4111 1111 1111 1111').text).toBe('Card—[card number 1]');
+    expect(redactSensitive('Card – 4111-1111-1111-1111').text).toBe('Card – [card number 1]');
+  });
+
+  it('hides addresses written in other scripts', () => {
+    expect(redactSensitive('Пишите на иван@пример.рф').text).toBe('Пишите на [email 1]');
+    expect(redactSensitive('Escribe a niño@ejemplo.es.').text).toBe('Escribe a [email 1].');
+    expect(redactSensitive('ईमेल: राम@उदाहरण.भारत').text).toBe('ईमेल: [email 1]');
+  });
+
+  it('hides values it hid before word for word, even where the patterns miss them', () => {
+    const redactor = new Redactor();
+    expect(
+      redactor.redact('Call 020 7946 0958now', [{ kind: 'phone', value: '020 7946 0958' }]),
+    ).toBe('Call [phone 1]now');
+  });
+
+  it('restores placeholders the model changed a little, but never inside a link', () => {
+    const redactor = new Redactor();
+    redactor.redact('Mail ana@x.example');
+    expect(redactor.restore('[Email 1], ［email 1］, [ e-mail 1 ] (see https://x.example)')).toBe(
+      'ana@x.example, ana@x.example, ana@x.example (see https://x.example)',
+    );
+    for (const link of [
+      '[mail](mailto:[email 1])',
+      '![x](https://img.example/[email 1].png)',
+      'https://evil.example/?e=[email 1]',
+      '<https://evil.example/[email 1]>',
+      'www.evil.example/[email 1]',
+    ]) {
+      expect(redactor.restore(link)).toBe(link);
+    }
+  });
+
+  it('lists the hidden values an answer refers to, and spots placeholders left in it', () => {
+    const redactor = new Redactor();
+    redactor.redact('Mail ana@x.example or call 020 7946 0958');
+    expect(redactor.valuesIn('Write to [Email 1] or [email 1]; not [phone 7].')).toEqual([
+      { kind: 'email', value: 'ana@x.example' },
+    ]);
+    expect(hasPlaceholder('see [Card number 2]')).toBe(true);
+    expect(hasPlaceholder('see [2] and [emails]')).toBe(false);
   });
 });
 

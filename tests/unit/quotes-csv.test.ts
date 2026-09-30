@@ -29,7 +29,7 @@ describe('quotes', () => {
   });
 
   it('ignores typographic differences when matching', () => {
-    expect(normalizeForMatch('It’s  a “test” — *really*')).toBe('its a test really');
+    expect(normalizeForMatch('It’s  a “test” — *really*')).toBe('its a test-really');
     expect(
       checkQuotes('"gives pages direct,  modern access to the graphics card"', page)[0]?.found,
     ).toBe(true);
@@ -41,6 +41,63 @@ describe('quote pairs', () => {
     const answer =
       'It says "Yes," and then, about compute shaders and graphics cards, "they run massively parallel work".';
     expect(extractQuotes(answer)).toEqual(['they run massively parallel work']);
+  });
+
+  it('reads mixed straight and curly marks, and German and French quotes', () => {
+    expect(
+      extractQuotes(
+        [
+          'It says “compute shaders run parallel work" here.',
+          'Es heißt „Das ist ein langer deutscher Satz“.',
+          'Il dit « C’est une longue phrase en français ».',
+        ].join('\n'),
+      ),
+    ).toEqual([
+      'compute shaders run parallel work',
+      'Das ist ein langer deutscher Satz',
+      'C’est une longue phrase en français',
+    ]);
+  });
+
+  it('takes a " between Hebrew letters for an abbreviation, not the end of a quote', () => {
+    expect(extractQuotes('נאמר "צה"ל הודיע כי המבצע הסתיים היום" בדיווח.')).toEqual([
+      'צה"ל הודיע כי המבצע הסתיים היום',
+    ]);
+  });
+
+  it('skips Japanese titles in 『』 and short terms in 「」', () => {
+    expect(extractQuotes('『吾輩は猫である』という小説で「猫です」と書いた。')).toEqual([]);
+    expect(extractQuotes('「吾輩は猫である。名前はまだ無い」')).toEqual([
+      '吾輩は猫である。名前はまだ無い',
+    ]);
+  });
+});
+
+describe('quote matching', () => {
+  it('keeps numbers, currency and math signs, which change the meaning', () => {
+    expect(normalizeForMatch('1.5 million')).not.toBe(normalizeForMatch('15 million'));
+    expect(normalizeForMatch('costs $5')).not.toBe(normalizeForMatch('costs 5'));
+    expect(normalizeForMatch('rose 5%')).not.toBe(normalizeForMatch('rose 5'));
+    expect(normalizeForMatch('x < 3')).toBe('x < 3');
+    expect(normalizeForMatch('1,000.50, and more')).toBe('1,000.50 and more');
+  });
+
+  it('ignores the kind of dash, the spaces around it and invisible characters', () => {
+    const words = normalizeForMatch('well-known');
+    expect(normalizeForMatch('well – known')).toBe(words);
+    expect(normalizeForMatch('well—known')).toBe(words);
+    expect(normalizeForMatch('pass\u00ADword and pass\u200Bword')).toBe('password and password');
+  });
+
+  it("gives the page's own wording of a found quote, without the Markdown", () => {
+    const page = 'It’s a well-known fact that **cats** sleep 16 hours a _day_, the study says.';
+    expect(checkQuotes('"It\'s a well—known fact that cats sleep 16 hours a day"', page)).toEqual([
+      {
+        text: "It's a well—known fact that cats sleep 16 hours a day",
+        found: true,
+        onPage: 'It’s a well-known fact that cats sleep 16 hours a day',
+      },
+    ]);
   });
 });
 
@@ -55,7 +112,12 @@ describe('quotes across languages', () => {
 
   it('reads 「」 quotes and ignores full-width punctuation differences', () => {
     expect(checkQuotes('它写着「您收到此邮件,是因为您在AirTCP申请了密码重置」。', email)).toEqual([
-      { text: '您收到此邮件,是因为您在AirTCP申请了密码重置', found: true },
+      {
+        text: '您收到此邮件,是因为您在AirTCP申请了密码重置',
+        found: true,
+        // The page's own wording, for Show on page.
+        onPage: '您收到此邮件是因为您在AirTCP申请了密码重置',
+      },
     ]);
   });
 

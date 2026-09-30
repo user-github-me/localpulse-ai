@@ -134,4 +134,31 @@ describe('conversationHistory', () => {
     expect(history.messages[1]?.content).toBe('Write to [email 1] or call [phone 1].');
     expect(history.redactions).toBe(2);
   });
+
+  it('hides values an earlier answer got back from placeholders, wherever they ended up', () => {
+    const answer: TurnItem = {
+      role: 'assistant',
+      // The model wrote "[phone 1]now": put back, the number runs into a word.
+      text: 'Call 020 7946 0958now.',
+      state: 'done',
+      sources: ['news.example'],
+      hidden: [{ kind: 'phone', value: '020 7946 0958' }],
+    };
+    const history = conversationHistory(
+      [{ role: 'user', text: 'How do I reach them?' }, answer],
+      cloud({ redactor: new Redactor() }),
+    );
+    expect(history.messages[1]?.content).toBe('Call [phone 1]now.');
+  });
+
+  it("doesn't let saved consent cover a local file: only this turn's consent does", () => {
+    const items = turn('Summarize my file', 'It is a tax return.', ['file:///tax.pdf'], 'x');
+    const always = { always: ['ep:gemini'], sites: {} };
+    expect(conversationHistory(items, cloud({ consent: always })).leftOut).toBe(1);
+    const history = conversationHistory(
+      items,
+      cloud({ consent: always, current: ['file:///tax.pdf'] }),
+    );
+    expect(history.messages).toHaveLength(2);
+  });
 });

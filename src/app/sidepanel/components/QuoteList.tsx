@@ -44,7 +44,10 @@ export function QuoteList({ item }: { item: ChatItem }) {
                       type="button"
                       className="font-medium text-local underline underline-offset-2"
                       onClick={async () => {
-                        const shown = await showQuoteInPage(tab.tabId as number, quote.text);
+                        const shown = await showQuoteInPage(
+                          tab.tabId as number,
+                          quote.onPage ? [quote.onPage, quote.text] : [quote.text],
+                        );
                         if (!shown) showToast(t('quotes.showFailed'));
                       }}
                     >

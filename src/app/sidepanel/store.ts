@@ -1,7 +1,13 @@
 import { create } from 'zustand';
 import { browser } from '#imports';
 import { conversationHistory, sourceKey, UNKNOWN_SOURCE } from '@/core/conversation';
-import { decodeAddress, isNeverCloudSite, Redactor, redactPage } from '@/core/privacy';
+import {
+  decodeAddress,
+  isNeverCloudSite,
+  Redactor,
+  redactPage,
+  type HiddenValue,
+} from '@/core/privacy';
 import { checkQuotes, type CheckedQuote } from '@/core/quotes';
 import { stripPageTags, type PromptPage } from '@/core/prompts';
 import { fillRecipePrompt, questionRecipe, recipeById, type Recipe } from '@/core/recipes';
@@ -68,14 +74,19 @@ export interface ChatItem {
   providerKey?: string;
   /** Text chosen outside the panel for this request, so Try again uses it too. Not saved. */
   selection?: SelectionSource;
-  /** The tab that selection came from. */
-  selectionTabId?: number;
+  /**
+   * The tab an action started from (right-click, shortcut), so Try again reads that tab again, not
+   * a file open in the panel. Not saved.
+   */
+  fromTabId?: number;
   /** Where an answer's content came from, including earlier turns (core/conversation.ts). */
   sources?: string[];
   /** Earlier turns not sent with this question because they may not go to its provider. */
   leftOut?: number;
   /** A rewrite, proofread or translation: its single line breaks are part of the text. */
   lineBreaks?: boolean;
+  /** Values a cloud provider saw as placeholders, which the answer shows again. */
+  hidden?: HiddenValue[];
 }
 
 /** Text chosen outside the panel, with the address of the page it's on. */
@@ -339,16 +350,14 @@ export const usePanel = create<PanelState>()((set, get) => {
       updatedAt: now,
       // Tab ids mean nothing after a restart and may point at another tab by then.
       // The selection is page text, which history never keeps.
-      items: stored.map(
-        ({ status: _status, selection: _selection, selectionTabId: _tab, ...item }) => ({
-          ...item,
-          context: item.context && {
-            ...item.context,
-            editableTabId: undefined,
-            editableText: undefined,
-          },
-        }),
-      ),
+      items: stored.map(({ status: _status, selection: _selection, fromTabId: _tab, ...item }) => ({
+        ...item,
+        context: item.context && {
+          ...item.context,
+          editableTabId: undefined,
+          editableText: undefined,
+        },
+      })),
     });
   };
 
@@ -643,7 +652,7 @@ export const usePanel = create<PanelState>()((set, get) => {
           context,
           lineBreaks: recipe.mode === 'transform' || undefined,
           selection: override,
-          selectionTabId: override ? options.tabId : undefined,
+          fromTabId: options.tabId,
         },
       ],
     }));
@@ -660,13 +669,14 @@ export const usePanel = create<PanelState>()((set, get) => {
       for (;;) {
         const cloud = provider.privacy === 'cloud';
         const redact = cloud && settings.redactForCloud;
-        // Earlier turns are chosen for each provider: a cloud one only gets what may go to it.
+        // Earlier turns are chosen for each provider: a cloud one only gets what may go to it,
+        // under the never-send list as it is now.
         const history = conversationHistory(earlier, {
           providerId: provider.id,
           providerKey: providerKeyOf(settings, provider),
           cloud,
           current: sources,
-          neverCloudSites: settings.neverCloudSites,
+          neverCloudSites: (get().settings ?? settings).neverCloudSites,
           consent: await getConsent(),
           redactor: redact ? redactor : undefined,
         });
@@ -691,6 +701,7 @@ export const usePanel = create<PanelState>()((set, get) => {
               history: history.messages,
               language,
               budgetScale,
+              placeholders: Boolean(redaction?.count || history.redactions),
             },
             {
               onText: buffer.append,
@@ -701,11 +712,14 @@ export const usePanel = create<PanelState>()((set, get) => {
           buffer.flush();
           // The answer shows the real emails and numbers that the cloud provider saw as
           // placeholders; nothing leaves this computer for it.
-          const answerText = redactor.restore(
-            stripPageTags(get().items.find((item) => item.id === answerId)?.text ?? ''),
+          const written = stripPageTags(
+            get().items.find((item) => item.id === answerId)?.text ?? '',
           );
+          const answerText = redactor.restore(written);
+          const hidden = redactor.valuesIn(written);
           patchItem(answerId, {
             text: answerText,
+            hidden: hidden.length ? hidden : undefined,
             // A translation or rewrite is new text, so its quotes aren't quotes from the page.
             quotes:
               page && recipe.mode !== 'transform' ? checkQuotes(answerText, page.text) : undefined,
@@ -946,7 +960,7 @@ export const usePanel = create<PanelState>()((set, get) => {
       if (answer.recipeId && answer.recipeId !== 'question') {
         await get().runRecipe(answer.recipeId, {
           selection: answer.selection,
-          tabId: answer.selectionTabId,
+          tabId: answer.fromTabId,
         });
       } else if (answer.instruction) await get().ask(answer.instruction);
     },

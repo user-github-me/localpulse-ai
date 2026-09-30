@@ -12,24 +12,37 @@ permissions changed.
 ### Fixed
 
 - **Replace selection** writes only over the text the answer was written from, on the same page,
-  and keeps the spaces and line breaks around it.
+  and keeps the spaces and line breaks around it. It refuses if a hidden detail couldn't be put
+  back into the text.
 - **Hidden details come back in answers:** emails, phone numbers and card numbers that a cloud
-  provider saw as placeholders show their real values in the answer, on this computer only. Replace
-  and quote checks use them too.
+  provider saw as placeholders show their real values in the answer, on this computer only, but
+  never inside a link. Follow-up questions hide them again.
 - **Privacy:**
-  - switching on Local-only mode or a never-send site during a request stops it;
-  - local files and pages of unknown origin always ask before going to the cloud;
+  - switching on Local-only mode or a never-send site during a request stops it, and follow-up
+    questions use the never-send list as it is now;
+  - local files and pages of unknown origin always ask before going to the cloud, and saved
+    consent doesn't let answers about them go along with later questions;
   - never-send rules written as ".bank.com" work, and blob: pages count as the site that made
     them;
   - earlier answers don't go to an endpoint whose server address has changed;
-  - emails next to Chinese or Japanese text, in the addresses of several tabs, and phone numbers
-    in full-width or Bengali digits are hidden;
+  - more details are hidden: emails in any script (Cyrillic, Devanagari, accented names) or next to
+    Chinese or Japanese text, emails in the addresses of several tabs, phone numbers next to
+    Japanese, Korean or Thai text or in full-width or Bengali digits, and card numbers after a
+    dash;
   - Firefox: follow-up questions also need the website-content permission.
 - **Right-click and shortcut actions** read the page even when a file is open in the panel, keep
-  their selection for Try again and "Continue in", and aren't lost when two arrive together.
-- **Languages:** the built-in summarizer no longer writes English summaries for other answer
-  languages; translations use the browser's translator when the built-in model can't write the
-  language, and say why when nothing can translate the text.
+  their tab and selection for Try again and "Continue in", and aren't lost when two arrive
+  together.
+- **Languages:**
+  - the built-in summarizer is used for the languages it writes; for others, the built-in model
+    answers instead, and a browser with only the summarizer gives an English summary, as before;
+  - translations use the browser's translator when the built-in model can't write the language,
+    and say why, naming the languages, when nothing can translate the text;
+  - lists and quotes in Arabic or Hebrew answers read right to left.
+- **Checked quotes:** numbers must match ("1.5" isn't "15"); German, French and mixed quote marks
+  are read, Hebrew abbreviations aren't taken for quote marks, and Japanese titles and short terms
+  aren't checked as quotes. Show on page finds a quote by the page's own wording.
+- Questions about long pages find sections that use a word with an apostrophe ("user's").
 - Requests that were too large are retried with smaller parts for the summarizer and translator
   too.
 - Answers keep code and tags that only look like LocalPulse's internal page wrapper.

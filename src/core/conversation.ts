@@ -1,7 +1,7 @@
 import { hostnameOf } from '@/lib/text';
 import type { ChatMessage } from '@/providers/types';
 import { hasConsent, type CloudConsent } from '@/storage/consent';
-import { isNeverCloudSite, type Redactor } from './privacy';
+import { isNeverCloudSite, type HiddenValue, type Redactor } from './privacy';
 
 /** Where content came from when it can't be told, e.g. an answer saved by an older version. */
 export const UNKNOWN_SOURCE = '?';
@@ -29,6 +29,8 @@ export interface TurnItem {
   sources?: string[];
   /** For answers: the provider that wrote it and the server it used (see providerKey). */
   providerKey?: string;
+  /** For answers: values a cloud provider saw as placeholders, now back in the text. */
+  hidden?: HiddenValue[];
 }
 
 export interface HistoryPolicy {
@@ -70,6 +72,7 @@ export function conversationHistory(
 ): ConversationHistory {
   const messages: ChatMessage[] = [];
   const sources = new Set<string>();
+  const known: HiddenValue[] = [];
   let leftOut = 0;
   let question: TurnItem | undefined;
   for (const item of items) {
@@ -86,6 +89,7 @@ export function conversationHistory(
       continue;
     }
     for (const source of item.sources ?? [UNKNOWN_SOURCE]) sources.add(source);
+    known.push(...(item.hidden ?? []));
     messages.push(
       { role: 'user', content: asked.instruction ?? asked.text },
       { role: 'assistant', content: item.text },
@@ -94,7 +98,10 @@ export function conversationHistory(
 
   const redactor = policy.cloud ? policy.redactor : undefined;
   const before = redactor?.count ?? 0;
-  if (redactor) for (const message of messages) message.content = redactor.redact(message.content);
+  // Values hidden before are hidden again as they are, even where the answer put them in a
+  // context the patterns wouldn't recognize.
+  if (redactor)
+    for (const message of messages) message.content = redactor.redact(message.content, known);
   return { messages, sources: [...sources], leftOut, redactions: (redactor?.count ?? 0) - before };
 }
 
@@ -104,10 +111,12 @@ function mayGoToCloud(item: TurnItem, policy: HistoryPolicy): boolean {
   if (item.sources.some((source) => isNeverCloudSite(source, policy.neverCloudSites))) return false;
   // This provider wrote it, on this same server, so its content already went there.
   if (item.providerKey !== undefined && item.providerKey === policy.providerKey) return true;
-  // Content of unknown origin can't be checked against the never-send list, so it stays out.
+  // Content of unknown origin can't be checked against the never-send list, so it stays out. A
+  // local file needs consent every time, so saved consent doesn't cover it: only this turn's.
   return item.sources.every(
     (source) =>
       source !== UNKNOWN_SOURCE &&
-      (policy.current.includes(source) || hasConsent(policy.consent, policy.providerId, source)),
+      (policy.current.includes(source) ||
+        (!source.startsWith('file:') && hasConsent(policy.consent, policy.providerId, source))),
   );
 }

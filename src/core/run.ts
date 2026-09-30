@@ -27,6 +27,8 @@ export interface TurnInput {
    * after the provider said the input was too large.
    */
   budgetScale?: number;
+  /** Emails, phone numbers or card numbers were replaced with placeholders like "[email 1]". */
+  placeholders?: boolean;
 }
 
 /** Progress on long pages; the UI turns it into translated text. */
@@ -65,7 +67,10 @@ export async function runTurn(
 ): Promise<TurnResult> {
   const { page, language } = input;
   const options: GenerateOptions = { signal, language };
-  const system = systemPrompt(language, { quotes: input.recipe.mode === 'qa' && Boolean(page) });
+  const system = systemPrompt(language, {
+    quotes: input.recipe.mode === 'qa' && Boolean(page),
+    placeholders: input.placeholders,
+  });
   const budget = Math.floor((await provider.inputBudget()) * (input.budgetScale ?? 1));
   const history = trimHistory(input.history, Math.floor(budget * 0.25));
   const overhead =
@@ -122,13 +127,27 @@ export async function runTurn(
       // Only the translator is here, and it can't take this text.
       throw new ProviderError(
         'unsupported',
-        from === to ? i18n.t('turn.alreadyInLanguage') : i18n.t('turn.unknownLanguage'),
+        !from
+          ? i18n.t('turn.unknownLanguage')
+          : from === to
+            ? i18n.t('turn.alreadyInLanguage')
+            : i18n.t('turn.pairUnavailable', {
+                from: displayLanguage(from),
+                to: displayLanguage(to),
+              }),
       );
     }
   }
 
-  if (input.recipe.summary && provider.summarize && (await provider.canSummarize?.(language))) {
-    return summarizeWithSummarizer(provider, input, callbacks, signal);
+  if (input.recipe.summary && provider.summarize) {
+    if (await provider.canSummarize?.(language)) {
+      return summarizeWithSummarizer(provider, input, callbacks, signal);
+    }
+    // Only the summarizer is here, and it can't write this language: a summary in English beats
+    // none.
+    if (!(await canChat(provider)) && (await provider.canSummarize?.())) {
+      return summarizeWithSummarizer(provider, { ...input, language: 'en' }, callbacks, signal);
+    }
   }
 
   let pageTokens = estimateTokens(page.text);
@@ -331,6 +350,19 @@ async function canChat(provider: Provider): Promise<boolean> {
 /** Whether the provider's chat model writes this language; assumed when it can't tell. */
 function writes(provider: Provider, language: string): boolean {
   return provider.writesLanguage?.(language) ?? true;
+}
+
+/** A language's name in the browser's language, e.g. "Bengali" in English. */
+function displayLanguage(code: string): string {
+  try {
+    return (
+      new Intl.DisplayNames([globalThis.navigator?.language ?? 'en'], { type: 'language' }).of(
+        code,
+      ) ?? code
+    );
+  } catch {
+    return code;
+  }
 }
 
 /** "zh-TW" → "zh-Hant", "en-US" → "en": the codes the Translator API expects. */

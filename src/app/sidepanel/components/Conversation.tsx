@@ -1,6 +1,7 @@
 import { Check, Copy, Replace, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Markdown } from '@/components/Markdown';
+import { hasPlaceholder } from '@/core/privacy';
 import { stripPageTags } from '@/core/prompts';
 import { IconButton } from '@/components/ui';
 import { t } from '../../shared/i18n';
@@ -137,16 +138,23 @@ function ReplaceButton({
   tabId,
   text,
   original,
+  placeholder,
 }: {
   tabId: number;
   text: string;
   original: { text: string; url: string };
+  /** The text still has a placeholder where a hidden value couldn't be put back. */
+  placeholder: boolean;
 }) {
   const showToast = usePanel((state) => state.showToast);
   return (
     <button
       type="button"
       onClick={async () => {
+        if (placeholder) {
+          showToast(t('conversation.replacePlaceholder'));
+          return;
+        }
         const result = await replaceSelectionInPage(tabId, text, original);
         // The field and its selection changed: read the tab again so the panel shows that.
         if (result === 'replaced') void usePanel.getState().refreshTab(tabId);
@@ -243,6 +251,7 @@ function Answer({ item }: { item: ChatItem }) {
                   tabId={item.context.editableTabId}
                   text={item.text}
                   original={{ text: item.context.editableText, url: item.context.url }}
+                  placeholder={Boolean(item.redactions) && hasPlaceholder(item.text)}
                 />
               )}
             {item.instruction && (

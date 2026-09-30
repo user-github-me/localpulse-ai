@@ -17,6 +17,15 @@ describe('tokenize', () => {
   it('keeps non-Latin words', () => {
     expect(tokenize('মঙ্গল গ্রহ')).toHaveLength(2);
   });
+
+  it('splits words at apostrophes and periods, so "user" finds "user\'s"', () => {
+    expect(tokenize("The user's settings, e.g. the app’s theme")).toEqual([
+      'user',
+      'settings',
+      'app',
+      'theme',
+    ]);
+  });
 });
 
 describe('bm25Scores', () => {

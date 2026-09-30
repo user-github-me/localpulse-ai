@@ -100,9 +100,15 @@ export class FakeTranslatorProvider extends FakeProvider {
 /** A fake with the built-in Summarizer API. */
 export class FakeSummarizerProvider extends FakeProvider {
   summaries: { text: string; options: SummarizeOptions }[] = [];
+  /** Languages it writes summaries in; all of them when unset. */
+  summaryLanguages?: string[];
 
-  async canSummarize(): Promise<boolean> {
-    return true;
+  async canSummarize(language?: string): Promise<boolean> {
+    return (
+      language === undefined ||
+      this.summaryLanguages === undefined ||
+      this.summaryLanguages.includes(language)
+    );
   }
 
   async summarizeBudget(): Promise<number> {

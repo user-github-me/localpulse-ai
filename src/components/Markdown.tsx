@@ -13,6 +13,32 @@ function domainOf(href: string | undefined): string | undefined {
   }
 }
 
+/** The parts of a Markdown syntax tree node that hold its text. */
+interface TextNode {
+  type: string;
+  value?: string;
+  children?: TextNode[];
+}
+
+const RTL_LETTER =
+  /[\p{Script=Hebrew}\p{Script=Arabic}\p{Script=Syriac}\p{Script=Thaana}\p{Script=Nko}\p{Script=Samaritan}\p{Script=Mandaic}\p{Script=Adlam}]/u;
+
+function textOf(node: TextNode | undefined): string {
+  if (!node) return '';
+  if (node.type === 'text') return node.value ?? '';
+  return (node.children ?? []).map(textOf).join('');
+}
+
+/**
+ * The direction of a block's first letter. The browser's dir="auto" skips children that set their
+ * own direction, such as the paragraphs in a quote, so lists and quotes are given theirs.
+ */
+function directionOf(node: TextNode | undefined): 'rtl' | 'ltr' | 'auto' {
+  const first = /\p{L}/u.exec(textOf(node))?.[0];
+  if (!first) return 'auto';
+  return RTL_LETTER.test(first) ? 'rtl' : 'ltr';
+}
+
 /** Tables get a "Download CSV" button. */
 function TableWithExport({ children }: { children?: React.ReactNode }) {
   const ref = useRef<HTMLTableElement>(null);
@@ -42,12 +68,12 @@ function TableWithExport({ children }: { children?: React.ReactNode }) {
 const components: Components = {
   // Each block takes the direction of its own text, so Arabic or Hebrew reads right to left.
   p: ({ children }) => <p dir="auto">{children}</p>,
-  li: ({ children, className }) => (
-    <li dir="auto" className={className}>
+  li: ({ children, className, node }) => (
+    <li dir={directionOf(node)} className={className}>
       {children}
     </li>
   ),
-  blockquote: ({ children }) => <blockquote dir="auto">{children}</blockquote>,
+  blockquote: ({ children, node }) => <blockquote dir={directionOf(node)}>{children}</blockquote>,
   h1: ({ children }) => <h1 dir="auto">{children}</h1>,
   h2: ({ children }) => <h2 dir="auto">{children}</h2>,
   h3: ({ children }) => <h3 dir="auto">{children}</h3>,
@@ -69,7 +95,7 @@ const components: Components = {
     return (
       <a href={href} target="_blank" rel="noopener noreferrer" title={href}>
         {children}
-        {domain && <span className="ml-1 font-sans text-[0.75em] text-muted">({domain})</span>}
+        {domain && <span className="ms-1 font-sans text-[0.75em] text-muted">({domain})</span>}
       </a>
     );
   },

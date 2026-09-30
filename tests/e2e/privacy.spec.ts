@@ -143,3 +143,55 @@ test('Local-only mode switched on while the consent dialog is open stops the sen
   await expect(panel.getByText(/Cloud providers are now off for this page/)).toBeVisible();
   expect(requests).toHaveLength(0);
 });
+
+test('the cloud sees placeholders; the answer shows the real address, but never in a link', async ({
+  context,
+  extensionId,
+}) => {
+  await context.route('https://seeds.test/**', (route) =>
+    route.fulfill({
+      body: `<!doctype html><html lang="en"><head><title>Seed swap</title></head><body><main><article>
+        <h1>Seed swap</h1><p>Write to jane@seeds.test for tomato seeds. ${'Seeds keep for years if they stay dry and cool. '.repeat(20)}</p>
+      </article></main></body></html>`,
+      contentType: 'text/html; charset=utf-8',
+    }),
+  );
+  const cloud = await mockChatApi(context, MOCK_API, () =>
+    cloud.length === 1
+      ? 'Write to [Email 1]. Details: https://evil.test/?e=[email 1]'
+      : 'You can write to [email 1].',
+  );
+  await seedStorage(context, extensionId, {
+    settings: {
+      endpoints: [endpoint('ep:mock', MOCK_API, 'Mock Cloud')],
+      onboardingComplete: true,
+    },
+    apiKeys: { 'ep:mock': 'test-key' },
+    cloudConsent: { always: ['ep:mock'], sites: {} },
+  });
+  const tab = await context.newPage();
+  await tab.goto('https://seeds.test/swap');
+  const panel = await openPanel(context, extensionId, tab);
+  const ask = async (question: string) => {
+    await panel.getByRole('textbox', { name: 'Ask about this page' }).fill(question);
+    await panel.keyboard.press('Enter');
+  };
+
+  await ask('Who has seeds?');
+  await expect(panel.getByText('Write to jane@seeds.test.')).toBeVisible();
+  const first = JSON.stringify(cloud[0]?.body.messages);
+  expect(first).not.toContain('jane@seeds.test');
+  expect(first).toContain('[email 1]');
+  expect(first).toContain('Write each placeholder exactly as it is');
+  // The link keeps the placeholder: opening it must not send the address to that site.
+  const links = await panel
+    .locator('.answer a')
+    .evaluateAll((anchors) => anchors.map((anchor) => (anchor as HTMLAnchorElement).href));
+  expect(links.filter((href) => href.includes('evil.test'))).not.toHaveLength(0);
+  expect(links.some((href) => href.includes('evil.test') && href.includes('jane'))).toBe(false);
+
+  // A follow-up takes the earlier answer along, with the address hidden again.
+  await ask('How do I reach them?');
+  await expect(panel.getByText('You can write to jane@seeds.test.')).toBeVisible();
+  expect(JSON.stringify(cloud[1]?.body.messages)).not.toContain('jane@seeds.test');
+});

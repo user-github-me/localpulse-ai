@@ -217,6 +217,25 @@ describe('runTurn', () => {
     await expect(latin).rejects.toThrow(/couldn't tell which language/);
   });
 
+  it('names the languages when only a translator is there and it lacks that pair', async () => {
+    const provider = new FakeTranslatorProvider('builtin', {
+      state: { kind: 'unsupported', reason: 'No chat model' },
+    });
+    provider.detected = 'fr';
+    const french = runTurn(
+      provider,
+      {
+        recipe: translate,
+        instruction: 'Translate this into Bangla.',
+        page: page('Bonjour tout le monde, comment allez-vous ?', { source: 'selection' }),
+        history: [],
+        language: 'bn',
+      },
+      { onText: () => {} },
+    );
+    await expect(french).rejects.toThrow(/can't translate French into (Bangla|Bengali)/);
+  });
+
   it("lets the model translate when the translator can't start", async () => {
     const provider = new FakeTranslatorProvider('builtin', {
       reply: () => 'You received this email because you asked to reset your password.',
@@ -256,6 +275,29 @@ describe('runTurn', () => {
     expect(provider.summaries.at(-1)?.options.type).toBe('tldr');
     expect(provider.summaries.length).toBeGreaterThan(1);
     expect(output).toMatch(/^summary\(tldr\)/);
+  });
+
+  it("summarizes in English when only the Summarizer is there and can't write the language", async () => {
+    const summarizer = (state?: { kind: 'unsupported'; reason: string }) => {
+      const provider = new FakeSummarizerProvider('builtin', {
+        state,
+        reply: () => 'Chat summary.',
+      });
+      provider.summaryLanguages = ['en', 'es', 'ja'];
+      return provider;
+    };
+    const input = { recipe: summarize, instruction: 'Sum', page: page(lorem(200)), history: [] };
+
+    const only = summarizer({ kind: 'unsupported', reason: 'No chat model' });
+    const result = await runTurn(only, { ...input, language: 'bn' }, { onText: () => {} });
+    expect(result.strategy).toBe('summarizer');
+    expect(only.summaries.at(-1)?.options.language).toBe('en');
+
+    // With a chat model too, the chat model answers in the language asked for.
+    const both = summarizer();
+    const direct = await runTurn(both, { ...input, language: 'bn' }, { onText: () => {} });
+    expect(direct.strategy).toBe('direct');
+    expect(both.summaries).toHaveLength(0);
   });
 
   it('answers without a page when there is none', async () => {

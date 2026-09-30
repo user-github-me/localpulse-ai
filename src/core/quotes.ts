@@ -8,22 +8,143 @@ import { countWords, mainScript, scriptCounts } from '@/lib/text';
 export interface CheckedQuote {
   text: string;
   found: boolean;
+  /** For a quote that was found: the page's own wording of it, to look it up in the page. */
+  onPage?: string;
 }
+
+/** Quote marks, Markdown emphasis and invisible characters: they never decide a match. */
+const IGNORED = /^[\p{Cf}"'`*_~«»‹›“”„‟‘’‚‛「」『』〝〞〟＂＇]+$/u;
+const DIGIT = /^\p{Nd}$/u;
+
+interface Normalized {
+  text: string;
+  /** Where each character of `text` came from in the original: start and end offsets. */
+  starts: number[];
+  ends: number[];
+}
+
+const MARK = /^\p{M}$/u;
 
 /**
- * Makes small differences not count: letter case, full-width forms, and punctuation (commas, quote
- * marks, dashes) in any language. Only the words and their order decide a match.
+ * Makes small differences not count: letter case, full-width forms, quote marks, emphasis, the
+ * kind of dash and the spaces around it, and punctuation such as commas in any language. Numbers
+ * keep their decimal points ("1.5" isn't "15"), and currency and math signs stay.
  */
-export function normalizeForMatch(text: string): string {
-  return text
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[\p{P}\p{S}]/gu, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+function normalize(original: string): Normalized {
+  const out: string[] = [];
+  const starts: number[] = [];
+  const ends: number[] = [];
+  const push = (chars: string, start: number, end: number) => {
+    for (let k = 0; k < chars.length; k++) {
+      out.push(chars[k] as string);
+      starts.push(start);
+      ends.push(end);
+    }
+  };
+  const dropSpace = () => {
+    if (out[out.length - 1] !== ' ') return;
+    out.pop();
+    starts.pop();
+    ends.pop();
+  };
+  const codeAt = (index: number) => original.codePointAt(index) ?? 0;
+  let previous = '';
+  let afterDash = false;
+  let i = 0;
+  while (i < original.length) {
+    const start = i;
+    const code = codeAt(i);
+    i += code > 0xffff ? 2 : 1;
+    // A character with its combining marks, so "é" written either way normalizes the same.
+    while (i < original.length && codeAt(i) >= 0x300 && MARK.test(String.fromCodePoint(codeAt(i))))
+      i += codeAt(i) > 0xffff ? 2 : 1;
+    const raw = original.slice(start, i);
+    const ascii = code < 0x80 && i - start === 1;
+    if (ascii && /[a-z0-9]/i.test(raw)) {
+      push(raw.toLowerCase(), start, i);
+      afterDash = false;
+      previous = raw;
+      continue;
+    }
+    const char = ascii ? raw : raw.normalize('NFKC').toLowerCase();
+    if (/^\s+$/.test(char)) {
+      if (out.length && !afterDash && out[out.length - 1] !== ' ') push(' ', start, i);
+    } else if (IGNORED.test(char)) {
+      previous = raw;
+      continue;
+    } else if (/^\p{Pd}$/u.test(char)) {
+      // "well-known", "well—known" and "well – known" are the same words.
+      dropSpace();
+      push('-', start, i);
+      afterDash = true;
+      previous = raw;
+      continue;
+    } else if (char === '%' || char === '‰') {
+      push(char, start, i);
+    } else if (/^\p{P}+$/u.test(char)) {
+      const next = String.fromCodePoint(codeAt(i));
+      if (DIGIT.test(previous) && i < original.length && DIGIT.test(next)) push(char, start, i);
+    } else if (/^[\p{Sk}\p{So}]+$/u.test(char)) {
+      previous = raw;
+      continue;
+    } else {
+      push(char, start, i);
+    }
+    afterDash = false;
+    previous = raw;
+  }
+  dropSpace();
+  return { text: out.join(''), starts, ends };
 }
 
-/** Quotations in an answer: text in double quotes or in Markdown blockquotes, at least 4 words. */
+export function normalizeForMatch(text: string): string {
+  return normalize(text).text;
+}
+
+/** Closing marks for each opening quote mark: models mix straight and curly ones. */
+const CLOSERS: Record<string, string> = {
+  '"': '"”',
+  '“': '”"',
+  '„': '“”"',
+  '«': '»',
+  '「': '」',
+  '＂': '＂',
+};
+
+const CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+
+/** A " between two Hebrew letters marks an abbreviation (צה"ל), not a quotation. */
+function isGershayim(text: string, index: number): boolean {
+  return (
+    text[index] === '"' &&
+    /\p{Script=Hebrew}/u.test(text[index - 1] ?? '') &&
+    /\p{Script=Hebrew}/u.test(text[index + 1] ?? '')
+  );
+}
+
+/** Text between quote marks, read from left to right, so a closing mark never opens a quote. */
+function quotedSpans(answer: string): { text: string; mark: string }[] {
+  const spans: { text: string; mark: string }[] = [];
+  let open: { mark: string; start: number } | undefined;
+  for (let i = 0; i < answer.length; i++) {
+    const char = answer[i] ?? '';
+    if (char === '\n') {
+      open = undefined;
+    } else if (isGershayim(answer, i)) {
+      continue;
+    } else if (open) {
+      if (CLOSERS[open.mark]?.includes(char)) {
+        spans.push({ text: answer.slice(open.start, i), mark: open.mark });
+        open = undefined;
+      }
+    } else if (char in CLOSERS) {
+      open = { mark: char, start: i + 1 };
+    }
+  }
+  return spans;
+}
+
+/** Quotations in an answer: text in quote marks or in Markdown blockquotes, at least 4 words. */
 export function extractQuotes(answer: string): string[] {
   const quotes = new Set<string>();
   const add = (raw: string) => {
@@ -33,17 +154,10 @@ export function extractQuotes(answer: string): string[] {
       .replace(/^[.…\s]+|[.…\s]+$/g, '');
     if (countWords(text) >= 4 && text.length <= 400) quotes.add(text);
   };
-  // Pairs are read from left to right, so a closing quote mark never starts the next quote.
-  for (const match of answer.matchAll(
-    /"([^"\n]*)"|“([^“”\n]*)”|「([^「」\n]*)」|『([^『』\n]*)』/g,
-  )) {
-    const text = match[1] ?? match[2] ?? match[3] ?? match[4] ?? '';
-    if (
-      text.length >= 12 ||
-      (text.length >= 6 &&
-        /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(text))
-    )
-      add(text);
+  for (const { text, mark } of quotedSpans(answer)) {
+    // 「」 also mark names and terms in Japanese; 『』, titles, aren't taken at all.
+    const shortest = mark === '「' ? 8 : CJK.test(text) ? 6 : 12;
+    if (text.length >= shortest) add(text);
   }
   const blockquote: string[] = [];
   for (const line of [...answer.split('\n'), '']) {
@@ -58,13 +172,24 @@ export function extractQuotes(answer: string): string[] {
   return [...quotes].slice(0, 12);
 }
 
+/** Page text without the Markdown the extractor added, closer to what the page shows. */
+function asShown(markdown: string): string {
+  return markdown
+    .replace(/\*\*|__|~~|`+/g, '')
+    .replace(/(^|[\s(])[_*]+(?=\S)|(?<=\S)[_*]+(?=$|[\s.,;:!?)])/gm, '$1')
+    .replace(/^\s*(?:#{1,6}|[-*+]|\d+\.|>)\s+/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 /**
  * Checks each quote against the page text. A quote in another writing system than the page, such
  * as an English translation of a Chinese email, can't be looked up in it, so it isn't checked
  * rather than wrongly flagged as missing.
  */
 export function checkQuotes(answer: string, pageText: string): CheckedQuote[] {
-  const page = normalizeForMatch(pageText);
+  const quotes = extractQuotes(answer);
+  if (!quotes.length) return [];
   const scripts = scriptCounts(pageText);
   const letters = Object.values(scripts).reduce((sum, count) => sum + count, 0);
   const inPageScript = (quote: string) => {
@@ -72,7 +197,14 @@ export function checkQuotes(answer: string, pageText: string): CheckedQuote[] {
     const count = script ? (scripts[script] ?? 0) : letters;
     return count >= 200 || count >= letters * 0.25;
   };
-  return extractQuotes(answer)
-    .filter(inPageScript)
-    .map((text) => ({ text, found: page.includes(normalizeForMatch(text)) }));
+  const page = normalize(pageText);
+  return quotes.filter(inPageScript).map((text) => {
+    const needle = normalizeForMatch(text);
+    const index = needle ? page.text.indexOf(needle) : -1;
+    if (index < 0) return { text, found: false };
+    const start = page.starts[index] ?? 0;
+    const end = page.ends[index + needle.length - 1] ?? pageText.length;
+    const onPage = asShown(pageText.slice(start, end));
+    return onPage && onPage !== text ? { text, found: true, onPage } : { text, found: true };
+  });
 }

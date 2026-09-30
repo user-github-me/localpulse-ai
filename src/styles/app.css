@@ -154,9 +154,10 @@
     font-size: 0.97rem;
   }
 
-  .answer ul,
-  .answer ol {
-    padding-left: 1.3em;
+  /* Each item takes its direction from its text (dir="auto"), so the room for its bullet is on
+     its own start side: on the right in Arabic or Hebrew, even in a list that mixes both. */
+  .answer li {
+    margin-inline-start: 1.3em;
   }
 
   .answer ul {
@@ -173,17 +174,17 @@
 
   .answer li:has(> input[type='checkbox']) {
     list-style: none;
-    margin-left: -1.3em;
+    margin-inline-start: 0;
   }
 
   .answer input[type='checkbox'] {
-    margin-right: 0.45em;
+    margin-inline-end: 0.45em;
     accent-color: var(--color-local);
   }
 
   .answer blockquote {
-    border-left: 3px solid var(--color-line);
-    padding-left: 0.8em;
+    border-inline-start: 3px solid var(--color-line);
+    padding-inline-start: 0.8em;
     color: var(--color-muted);
   }
 
@@ -230,7 +231,7 @@
   .answer td {
     border: 1px solid var(--color-line);
     padding: 0.3em 0.5em;
-    text-align: left;
+    text-align: start;
   }
 
   .answer hr {

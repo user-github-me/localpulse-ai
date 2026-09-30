@@ -123,3 +123,45 @@ test('the consent dialog fits a narrow side panel', async ({ context, extensionI
   expect(await findOverflow(panel)).toEqual([]);
   await panel.screenshot({ path: join(SCREENS, 'narrow-consent.png') });
 });
+
+test('Arabic or Hebrew answers put bullets and quote bars on the right', async ({
+  context,
+  extensionId,
+  article,
+}) => {
+  await mockChatApi(context, MOCK_LOCAL_API, () =>
+    [
+      '- مرحبا بالعالم، هذه قائمة',
+      '- Hello world, this is a list',
+      '',
+      '> هذا اقتباس من الصفحة',
+    ].join('\n'),
+  );
+  await seedStorage(context, extensionId, {
+    settings: {
+      endpoints: [endpoint('ep:local', MOCK_LOCAL_API, 'Local Mock')],
+      onboardingComplete: true,
+    },
+  });
+  const panel = await openNarrowPanel(context, extensionId, article);
+  await panel.getByRole('textbox', { name: 'Ask about this page' }).fill('Say hello');
+  await panel.keyboard.press('Enter');
+  await expect(panel.getByText('Hello world, this is a list')).toBeVisible();
+  const sides = await panel.locator('.answer li, .answer blockquote').evaluateAll((elements) =>
+    elements.map((element) => {
+      const style = getComputedStyle(element);
+      return element.tagName === 'LI'
+        ? { left: parseFloat(style.marginLeft) > 0, right: parseFloat(style.marginRight) > 0 }
+        : {
+            left: parseFloat(style.borderLeftWidth) > 0,
+            right: parseFloat(style.borderRightWidth) > 0,
+          };
+    }),
+  );
+  expect(sides).toEqual([
+    { left: false, right: true },
+    { left: true, right: false },
+    { left: false, right: true },
+  ]);
+  expect(await findOverflow(panel)).toEqual([]);
+});

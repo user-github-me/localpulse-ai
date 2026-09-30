@@ -155,6 +155,7 @@ conversation:
   replaced: Replaced the selected text on the page.
   replaceFailed: Couldn't replace it. Select the text in the field again, then try once more.
   replaceChanged: The page or the selected text has changed since this answer, so nothing was replaced. Select the same text again and ask once more.
+  replacePlaceholder: This text still has a placeholder, such as [email 1], where a hidden value couldn't be put back, so nothing was replaced. Copy the text and fix that part yourself.
   switched: "{failed} couldn't answer ({reason}) so {next} answered instead."
 
 turn:
@@ -165,6 +166,7 @@ turn:
   downloadingTranslator: Downloading the browser's translator for this language (only the first time)…
   alreadyInLanguage: This text is already in the language answers are written in.
   unknownLanguage: LocalPulse couldn't tell which language this text is in, so the browser's translator can't start.
+  pairUnavailable: The browser's translator can't translate {from} into {to}. A chat model can; set one up in Settings.
   part: Part {part} of {total}…
 
 quotes:

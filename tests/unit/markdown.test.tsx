@@ -45,6 +45,14 @@ describe('Markdown', () => {
     expect(render('مرحبا بالعالم')).toContain('<p dir="auto">');
   });
 
+  it('gives lists and quotes the direction of their first letter, even around paragraphs', () => {
+    // The browser's dir="auto" would skip the <p> inside, which sets its own direction.
+    const html = render('- مرحبا بالعالم\n\n- Hello world\n\n> שלום עולם');
+    expect(html).toMatch(/<li dir="rtl">\s*<p dir="auto">مرحبا/);
+    expect(html).toMatch(/<li dir="ltr">\s*<p dir="auto">Hello/);
+    expect(html).toMatch(/<blockquote dir="rtl">/);
+  });
+
   it('turns a plain <br> into a line break', () => {
     expect(render('one<br>two')).toMatch(/one<br\/>\s*two/);
   });
