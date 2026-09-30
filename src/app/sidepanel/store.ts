@@ -3,6 +3,7 @@ import { browser } from '#imports';
 import { conversationHistory, sourceKey, UNKNOWN_SOURCE } from '@/core/conversation';
 import {
   decodeAddress,
+  hasPlaceholder,
   isNeverCloudSite,
   Redactor,
   redactPage,
@@ -87,6 +88,11 @@ export interface ChatItem {
   lineBreaks?: boolean;
   /** Values a cloud provider saw as placeholders, which the answer shows again. */
   hidden?: HiddenValue[];
+  /**
+   * A rewrite or translation that lost a hidden value, e.g. its placeholder was translated: Replace
+   * would put a placeholder into the page.
+   */
+  unrestored?: boolean;
 }
 
 /** Text chosen outside the panel, with the address of the page it's on. */
@@ -717,9 +723,15 @@ export const usePanel = create<PanelState>()((set, get) => {
           );
           const answerText = redactor.restore(written);
           const hidden = redactor.valuesIn(written);
+          const unrestored =
+            redact &&
+            recipe.mode === 'transform' &&
+            (hasPlaceholder(answerText) ||
+              redactor.values().some(({ value }) => !answerText.includes(value)));
           patchItem(answerId, {
             text: answerText,
             hidden: hidden.length ? hidden : undefined,
+            unrestored: unrestored || undefined,
             // A translation or rewrite is new text, so its quotes aren't quotes from the page.
             quotes:
               page && recipe.mode !== 'transform' ? checkQuotes(answerText, page.text) : undefined,

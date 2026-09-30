@@ -1,7 +1,6 @@
 import { Check, Copy, Replace, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Markdown } from '@/components/Markdown';
-import { hasPlaceholder } from '@/core/privacy';
 import { stripPageTags } from '@/core/prompts';
 import { IconButton } from '@/components/ui';
 import { t } from '../../shared/i18n';
@@ -143,7 +142,7 @@ function ReplaceButton({
   tabId: number;
   text: string;
   original: { text: string; url: string };
-  /** The text still has a placeholder where a hidden value couldn't be put back. */
+  /** A hidden value couldn't be put back into the text. */
   placeholder: boolean;
 }) {
   const showToast = usePanel((state) => state.showToast);
@@ -251,7 +250,7 @@ function Answer({ item }: { item: ChatItem }) {
                   tabId={item.context.editableTabId}
                   text={item.text}
                   original={{ text: item.context.editableText, url: item.context.url }}
-                  placeholder={Boolean(item.redactions) && hasPlaceholder(item.text)}
+                  placeholder={Boolean(item.unrestored)}
                 />
               )}
             {item.instruction && (

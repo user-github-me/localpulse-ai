@@ -43,17 +43,19 @@ describe('quote pairs', () => {
     expect(extractQuotes(answer)).toEqual(['they run massively parallel work']);
   });
 
-  it('reads mixed straight and curly marks, and German and French quotes', () => {
+  it('keeps quotes inside quotes whole, and reads German and French quotes', () => {
     expect(
       extractQuotes(
         [
-          'It says “compute shaders run parallel work" here.',
+          'It says “the so-called "fast path" is disabled by default” here.',
+          'It says "the so-called “fast path” is disabled by default" here.',
           'Es heißt „Das ist ein langer deutscher Satz“.',
           'Il dit « C’est une longue phrase en français ».',
         ].join('\n'),
       ),
     ).toEqual([
-      'compute shaders run parallel work',
+      'the so-called "fast path" is disabled by default',
+      'the so-called “fast path” is disabled by default',
       'Das ist ein langer deutscher Satz',
       'C’est une longue phrase en français',
     ]);
@@ -87,6 +89,44 @@ describe('quote matching', () => {
     expect(normalizeForMatch('well – known')).toBe(words);
     expect(normalizeForMatch('well—known')).toBe(words);
     expect(normalizeForMatch('pass\u00ADword and pass\u200Bword')).toBe('password and password');
+  });
+
+  it('ignores the Markdown that starts lines of the page, and the kind of minus sign', () => {
+    const page =
+      '> We should ship the release on\n> Friday after the final review.\n\nIt was −40 °C.';
+    expect(
+      checkQuotes('"we should ship the release on Friday after the final review"', page)[0]?.found,
+    ).toBe(true);
+    expect(checkQuotes('"It was -40 °C that morning"', `${page} that morning`)[0]?.found).toBe(
+      true,
+    );
+    expect(normalizeForMatch('- first item\n- second item')).toBe('first item second item');
+  });
+
+  it('ignores any spaces after a dash, even across lines', () => {
+    expect(normalizeForMatch('well –  known')).toBe('well-known');
+    const page = 'The results —\n\nwere strong in every region we measured.';
+    expect(checkQuotes('"The results — were strong in every region"', page)[0]?.found).toBe(true);
+  });
+
+  it('matches Greek capitals and decomposed Korean', () => {
+    expect(
+      checkQuotes('"ο νομος του κρατους ισχυει σημερα"', 'Ο ΝΟΜΟΣ ΤΟΥ ΚΡΑΤΟΥΣ ΙΣΧΥΕΙ ΣΗΜΕΡΑ.')[0]
+        ?.found,
+    ).toBe(true);
+    const korean = '오늘은 정말 좋은 하루였습니다 모두 감사합니다';
+    expect(checkQuotes(`“${korean}”`, korean.normalize('NFD'))[0]?.found).toBe(true);
+  });
+
+  it("gives the page's own wording without the extractor's escapes", () => {
+    const page = 'Always use snake\\_case names in every module of the project.';
+    expect(checkQuotes('"use snake_case names in every module"', page)).toEqual([
+      { text: 'use snake_case names in every module', found: true },
+    ]);
+    const mid = 'We met at 3. Then we left the party early that night.';
+    expect(checkQuotes('"at 3. Then we left the party early"', mid)).toEqual([
+      { text: 'at 3. Then we left the party early', found: true },
+    ]);
   });
 
   it("gives the page's own wording of a found quote, without the Markdown", () => {

@@ -25,10 +25,16 @@ interface Normalized {
 
 const MARK = /^\p{M}$/u;
 
+/** Hangul vowel and final-consonant jamo: in decomposed text they belong to the syllable before. */
+function isJamoTail(code: number): boolean {
+  return (code >= 0x1160 && code <= 0x11ff) || (code >= 0xd7b0 && code <= 0xd7ff);
+}
+
 /**
  * Makes small differences not count: letter case, full-width forms, quote marks, emphasis, the
- * kind of dash and the spaces around it, and punctuation such as commas in any language. Numbers
- * keep their decimal points ("1.5" isn't "15"), and currency and math signs stay.
+ * kind of dash and the spaces around it, punctuation such as commas in any language, and the
+ * Markdown that starts a line ("> ", "- ", "1. "). Numbers keep their decimal points ("1.5" isn't
+ * "15"), and currency and math signs stay.
  */
 function normalize(original: string): Normalized {
   const out: string[] = [];
@@ -50,30 +56,52 @@ function normalize(original: string): Normalized {
   const codeAt = (index: number) => original.codePointAt(index) ?? 0;
   let previous = '';
   let afterDash = false;
+  let lineStart = true;
   let i = 0;
   while (i < original.length) {
     const start = i;
     const code = codeAt(i);
     i += code > 0xffff ? 2 : 1;
     // A character with its combining marks, so "é" written either way normalizes the same.
-    while (i < original.length && codeAt(i) >= 0x300 && MARK.test(String.fromCodePoint(codeAt(i))))
+    while (
+      i < original.length &&
+      codeAt(i) >= 0x300 &&
+      (MARK.test(String.fromCodePoint(codeAt(i))) || isJamoTail(codeAt(i)))
+    )
       i += codeAt(i) > 0xffff ? 2 : 1;
     const raw = original.slice(start, i);
     const ascii = code < 0x80 && i - start === 1;
+    if (lineStart && !/^\s$/.test(raw)) {
+      lineStart = false;
+      // Markdown the page's text starts lines with: quote bars, bullets and numbers of lists.
+      const marker = /^(?:>[ \t]*)+|^(?:[-*+]|\d{1,3}[.)])(?=[ \t])/.exec(
+        original.slice(start, start + 8),
+      );
+      if (marker) {
+        i = start + marker[0].length;
+        previous = ' ';
+        lineStart = marker[0].startsWith('>');
+        continue;
+      }
+    }
     if (ascii && /[a-z0-9]/i.test(raw)) {
       push(raw.toLowerCase(), start, i);
       afterDash = false;
       previous = raw;
       continue;
     }
-    const char = ascii ? raw : raw.normalize('NFKC').toLowerCase();
+    const char = ascii ? raw : raw.normalize('NFKC').toLowerCase().replace(/ς/g, 'σ');
     if (/^\s+$/.test(char)) {
+      // Spaces after a dash don't count, however many.
       if (out.length && !afterDash && out[out.length - 1] !== ' ') push(' ', start, i);
+      if (raw === '\n') lineStart = true;
+      previous = raw;
+      continue;
     } else if (IGNORED.test(char)) {
       previous = raw;
       continue;
-    } else if (/^\p{Pd}$/u.test(char)) {
-      // "well-known", "well—known" and "well – known" are the same words.
+    } else if (/^\p{Pd}$/u.test(char) || char === '−') {
+      // "well-known", "well—known" and "well – known" are the same words, and "−40" is "-40".
       dropSpace();
       push('-', start, i);
       afterDash = true;
@@ -101,11 +129,11 @@ export function normalizeForMatch(text: string): string {
   return normalize(text).text;
 }
 
-/** Closing marks for each opening quote mark: models mix straight and curly ones. */
+/** Closing marks for each opening quote mark. */
 const CLOSERS: Record<string, string> = {
-  '"': '"”',
-  '“': '”"',
-  '„': '“”"',
+  '"': '"',
+  '“': '”',
+  '„': '“”',
   '«': '»',
   '「': '」',
   '＂': '＂',
@@ -122,23 +150,30 @@ function isGershayim(text: string, index: number): boolean {
   );
 }
 
-/** Text between quote marks, read from left to right, so a closing mark never opens a quote. */
+/**
+ * Text between quote marks, read from left to right, so a closing mark never opens a quote. A
+ * quote inside a quote (the "fast path" in “the so-called "fast path" is off”) stays part of it.
+ */
 function quotedSpans(answer: string): { text: string; mark: string }[] {
   const spans: { text: string; mark: string }[] = [];
-  let open: { mark: string; start: number } | undefined;
+  const open: { mark: string; start: number }[] = [];
   for (let i = 0; i < answer.length; i++) {
     const char = answer[i] ?? '';
     if (char === '\n') {
-      open = undefined;
-    } else if (isGershayim(answer, i)) {
+      open.length = 0;
       continue;
-    } else if (open) {
-      if (CLOSERS[open.mark]?.includes(char)) {
-        spans.push({ text: answer.slice(open.start, i), mark: open.mark });
-        open = undefined;
-      }
+    }
+    if (isGershayim(answer, i)) continue;
+    // The innermost open quote that this mark closes, if any.
+    let level = open.length - 1;
+    while (level >= 0 && !CLOSERS[open[level]?.mark ?? '']?.includes(char)) level--;
+    if (level >= 0) {
+      const closed = open[level];
+      open.length = level;
+      if (level === 0 && closed)
+        spans.push({ text: answer.slice(closed.start, i), mark: closed.mark });
     } else if (char in CLOSERS) {
-      open = { mark: char, start: i + 1 };
+      open.push({ mark: char, start: i + 1 });
     }
   }
   return spans;
@@ -174,12 +209,18 @@ export function extractQuotes(answer: string): string[] {
 
 /** Page text without the Markdown the extractor added, closer to what the page shows. */
 function asShown(markdown: string): string {
-  return markdown
-    .replace(/\*\*|__|~~|`+/g, '')
-    .replace(/(^|[\s(])[_*]+(?=\S)|(?<=\S)[_*]+(?=$|[\s.,;:!?)])/gm, '$1')
-    .replace(/^\s*(?:#{1,6}|[-*+]|\d+\.|>)\s+/gm, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+  return (
+    markdown
+      .replace(/\*\*|__|~~|`+/g, '')
+      .replace(/(^|[\s(])[_*]+(?=\S)|(?<=\S)[_*]+(?=$|[\s.,;:!?)])/gm, '$1')
+      // Quote bars and list bullets where a line starts inside the quote (the quote's own start
+      // is past them).
+      .replace(/\n[ \t]*(?:>[ \t]*)*(?:(?:#{1,6}|[-*+]|\d{1,3}[.)])[ \t]+)?/g, '\n')
+      // The extractor's escapes: "snake\_case".
+      .replace(/\\([\\`*_{}[\]()#+\-.!>|~<])/g, '$1')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
 }
 
 /**

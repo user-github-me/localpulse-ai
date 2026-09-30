@@ -1,7 +1,7 @@
 import { hostnameOf } from '@/lib/text';
 import type { ChatMessage } from '@/providers/types';
 import { hasConsent, type CloudConsent } from '@/storage/consent';
-import { isNeverCloudSite, type HiddenValue, type Redactor } from './privacy';
+import { isNeverCloudSite, unnumberPlaceholders, type HiddenValue, type Redactor } from './privacy';
 
 /** Where content came from when it can't be told, e.g. an answer saved by an older version. */
 export const UNKNOWN_SOURCE = '?';
@@ -90,9 +90,10 @@ export function conversationHistory(
     }
     for (const source of item.sources ?? [UNKNOWN_SOURCE]) sources.add(source);
     known.push(...(item.hidden ?? []));
+    // A placeholder the answer kept would get the number of another value in this request.
     messages.push(
-      { role: 'user', content: asked.instruction ?? asked.text },
-      { role: 'assistant', content: item.text },
+      { role: 'user', content: unnumberPlaceholders(asked.instruction ?? asked.text) },
+      { role: 'assistant', content: unnumberPlaceholders(item.text) },
     );
   }
 

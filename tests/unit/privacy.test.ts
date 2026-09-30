@@ -7,6 +7,7 @@ import {
   redactPage,
   redactSensitive,
   Redactor,
+  unnumberPlaceholders,
 } from '@/core/privacy';
 
 describe('redactSensitive', () => {
@@ -74,9 +75,31 @@ describe('Redactor', () => {
     expect(redactSensitive('SKU AB0207946095 and x020-7946-0958y').count).toBe(0);
   });
 
-  it('hides card numbers after a dash', () => {
+  it('hides card numbers after a dash, or next to another number', () => {
     expect(redactSensitive('Card—4111 1111 1111 1111').text).toBe('Card—[card number 1]');
     expect(redactSensitive('Card – 4111-1111-1111-1111').text).toBe('Card – [card number 1]');
+    expect(redactSensitive('Card-4111 1111 1111 1111').text).toBe('Card-[card number 1]');
+    expect(redactSensitive('Visa-4111-1111-1111-1111').text).toBe('Visa-[card number 1]');
+    expect(redactSensitive('Card 4111 1111 1111 1111-').text).toBe('Card [card number 1]-');
+    expect(redactSensitive('Qty 1 4111 1111 1111 1111').text).toBe('Qty 1 [card number 1]');
+  });
+
+  it('hides addresses stuck to long runs of Khmer, Lao, Myanmar or Hindi text', () => {
+    for (const letter of ['ក', 'ສ', 'မ', 'क']) {
+      const text = `${letter.repeat(77)}info@company.example`;
+      expect(redactSensitive(text).text).toBe(`${letter.repeat(77)}[email 1]`);
+    }
+  });
+
+  it('leaves ISBNs and codes with Cyrillic letters alone', () => {
+    for (const text of [
+      'Артикул АБ0207946095',
+      'ISBN 978-0-306-40615-7',
+      'ISBN: 0-306-40615-2',
+      'See 978-0-306-40615-7.',
+    ]) {
+      expect(redactSensitive(text).text).toBe(text);
+    }
   });
 
   it('hides addresses written in other scripts', () => {
@@ -88,8 +111,24 @@ describe('Redactor', () => {
   it('hides values it hid before word for word, even where the patterns miss them', () => {
     const redactor = new Redactor();
     expect(
-      redactor.redact('Call 020 7946 0958now', [{ kind: 'phone', value: '020 7946 0958' }]),
-    ).toBe('Call [phone 1]now');
+      redactor.redact('Call 020 7946 0958now or 020 7946 0958now', [
+        { kind: 'phone', value: '020 7946 0958' },
+      ]),
+    ).toBe('Call [phone 1]now or [phone 1]now');
+    expect(redactor.count).toBe(2);
+  });
+
+  it('restores placeholders written in other forms, and unnumbers ones left in old answers', () => {
+    const redactor = new Redactor();
+    redactor.redact('Call 020 7946 0958');
+    expect(redactor.restore('[PHONE_1], [phone １], [Phone 01]')).toBe(
+      '020 7946 0958, 020 7946 0958, 020 7946 0958',
+    );
+    // A translated label can't be put back; Replace checks for the value itself (store.ts).
+    expect(redactor.restore('[teléfono 1]')).toBe('[teléfono 1]');
+    expect(unnumberPlaceholders('Billing is [email 2]; call [Phone 1].')).toBe(
+      'Billing is [email]; call [Phone].',
+    );
   });
 
   it('restores placeholders the model changed a little, but never inside a link', () => {

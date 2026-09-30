@@ -154,8 +154,8 @@
     font-size: 0.97rem;
   }
 
-  /* Each item takes its direction from its text (dir="auto"), so the room for its bullet is on
-     its own start side: on the right in Arabic or Hebrew, even in a list that mixes both. */
+  /* Each item gets the direction of its text (components/Markdown.tsx), so the room for its bullet
+     is on its own start side: on the right in Arabic or Hebrew, even in a list that mixes both. */
   .answer li {
     margin-inline-start: 1.3em;
   }

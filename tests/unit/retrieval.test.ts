@@ -18,6 +18,18 @@ describe('tokenize', () => {
     expect(tokenize('মঙ্গল গ্রহ')).toHaveLength(2);
   });
 
+  it('keeps numbers with points whole', () => {
+    expect(tokenize('Version 1.0.1 changed: the 2.5 plan costs 3.14')).toEqual([
+      'version',
+      '1.0.1',
+      'changed',
+      '2.5',
+      'plan',
+      'costs',
+      '3.14',
+    ]);
+  });
+
   it('splits words at apostrophes and periods, so "user" finds "user\'s"', () => {
     expect(tokenize("The user's settings, e.g. the app’s theme")).toEqual([
       'user',

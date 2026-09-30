@@ -151,6 +151,15 @@ describe('conversationHistory', () => {
     expect(history.messages[1]?.content).toBe('Call [phone 1]now.');
   });
 
+  it('takes the numbers out of placeholders an earlier answer kept', () => {
+    // "[email 2]" meant nothing the new request knows; the new page's second address would get it.
+    const history = conversationHistory(
+      turn('Who handles billing?', 'The billing contact is [email 2].', ['news.example']),
+      cloud({ redactor: new Redactor() }),
+    );
+    expect(history.messages[1]?.content).toBe('The billing contact is [email].');
+  });
+
   it("doesn't let saved consent cover a local file: only this turn's consent does", () => {
     const items = turn('Summarize my file', 'It is a tax return.', ['file:///tax.pdf'], 'x');
     const always = { always: ['ep:gemini'], sites: {} };

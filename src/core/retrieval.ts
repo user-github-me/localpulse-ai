@@ -26,10 +26,12 @@ const IDEOGRAPHIC = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Scr
 export function tokenize(text: string): string[] {
   const lower = text.toLowerCase();
   // The segmenter keeps "user's" and "e.g." whole; a question about "user" should find them.
+  // Numbers such as "2.5" or "1.0.1" stay whole.
   const words = wordSegmenter
     ? [...wordSegmenter.segment(lower)]
         .filter((part) => part.isWordLike)
-        .flatMap((part) => part.segment.split(/['’.]/))
+        .flatMap((part) => part.segment.split(/['’]/))
+        .flatMap((word) => (/\p{L}/u.test(word) ? word.split('.') : [word]))
     : (lower.match(/[\p{L}\p{M}\p{N}]+/gu) ?? []);
   return words.filter(
     (token) => (token.length > 1 || IDEOGRAPHIC.test(token)) && !STOP_WORDS.has(token),

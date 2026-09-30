@@ -2,6 +2,7 @@ import type { BrowserContext, Page } from '@playwright/test';
 import {
   endpoint,
   expect,
+  MOCK_API,
   MOCK_LOCAL_API,
   mockChatApi,
   openPanel,
@@ -19,7 +20,7 @@ const COMPOSE_URL = 'https://mail.test/compose';
 const DRAFT = "Hi team,\n\nwe're meeting tomorow at 10.\n\nThanks,\nSam";
 const FIXED = "Hi team,\n\nWe're meeting tomorrow at 10.\n\nThanks,\nSam";
 
-async function openDraft(context: BrowserContext): Promise<Page> {
+async function openDraft(context: BrowserContext, text = DRAFT): Promise<Page> {
   await context.route(`${COMPOSE_URL}**`, (route) =>
     route.fulfill({
       body: `<!doctype html><html lang="en"><head><title>New message</title></head><body>
@@ -34,7 +35,7 @@ async function openDraft(context: BrowserContext): Promise<Page> {
     field.value = draft;
     field.focus();
     field.setSelectionRange(0, field.value.length);
-  }, DRAFT);
+  }, text);
   return page;
 }
 
@@ -129,4 +130,43 @@ test('Replace refuses when the field no longer holds the text the answer was wri
     panel.getByText(/has changed since this answer, so nothing was replaced/),
   ).toBeVisible();
   expect(await draft.locator('#message').inputValue()).toBe('A completely different message.');
+});
+
+test('Replace refuses text where the cloud model changed the placeholder of a hidden address', async ({
+  context,
+  extensionId,
+}) => {
+  const draft = 'Hi team,\n\nwrite to jane@mail.test tomorow.\n\nThanks,\nSam';
+  // The first answer translates the placeholder, so the address can't be put back; the second
+  // keeps it.
+  const cloud = await mockChatApi(context, MOCK_API, () =>
+    cloud.length === 1
+      ? 'Hi team,\n\nWrite to [correo 1] tomorrow.\n\nThanks,\nSam'
+      : 'Hi team,\n\nWrite to [email 1] tomorrow.\n\nThanks,\nSam',
+  );
+  await seedStorage(context, extensionId, {
+    settings: {
+      endpoints: [endpoint('ep:mock', MOCK_API, 'Mock Cloud')],
+      onboardingComplete: true,
+    },
+    apiKeys: { 'ep:mock': 'test-key' },
+    cloudConsent: { always: ['ep:mock'], sites: {} },
+  });
+  const page = await openDraft(context, draft);
+  const panel = await openPanel(context, extensionId, page);
+  await expect(panel.getByText(/Your selection/)).toBeVisible();
+  await panel.getByRole('button', { name: 'Proofread' }).click();
+  await expect(panel.getByRole('button', { name: 'Replace selection' })).toBeVisible();
+  expect(JSON.stringify(cloud[0]?.body.messages)).not.toContain('jane@mail.test');
+  await panel.getByRole('button', { name: 'Replace selection' }).click();
+  await expect(panel.getByText(/couldn't be put back into this text/)).toBeVisible();
+  expect(await page.locator('#message').inputValue()).toBe(draft);
+
+  await panel.getByRole('button', { name: 'Try again' }).click();
+  await expect(panel.locator('p.answer')).toContainText('Write to jane@mail.test tomorrow.');
+  await panel.getByRole('button', { name: 'Replace selection' }).click();
+  await expect(panel.getByText('Replaced the selected text on the page.')).toBeVisible();
+  expect(await page.locator('#message').inputValue()).toBe(
+    'Hi team,\n\nWrite to jane@mail.test tomorrow.\n\nThanks,\nSam',
+  );
 });

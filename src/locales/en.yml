@@ -155,7 +155,7 @@ conversation:
   replaced: Replaced the selected text on the page.
   replaceFailed: Couldn't replace it. Select the text in the field again, then try once more.
   replaceChanged: The page or the selected text has changed since this answer, so nothing was replaced. Select the same text again and ask once more.
-  replacePlaceholder: This text still has a placeholder, such as [email 1], where a hidden value couldn't be put back, so nothing was replaced. Copy the text and fix that part yourself.
+  replacePlaceholder: An email, phone number or card number hidden from the cloud couldn't be put back into this text, because the model changed its placeholder, such as [email 1]. Nothing was replaced. Copy the text and fix that part yourself.
   switched: "{failed} couldn't answer ({reason}) so {next} answered instead."
 
 turn:

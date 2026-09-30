@@ -215,6 +215,21 @@ describe('runTurn', () => {
       { onText: () => {} },
     );
     await expect(latin).rejects.toThrow(/couldn't tell which language/);
+
+    // The browser's detector says "und" when it can't tell.
+    provider.detected = 'und';
+    const und = runTurn(
+      provider,
+      {
+        recipe: translate,
+        instruction: 'Translate this into English.',
+        page: page('Bonjour tout le monde, comment allez-vous ?', { source: 'selection' }),
+        history: [],
+        language: 'en',
+      },
+      { onText: () => {} },
+    );
+    await expect(und).rejects.toThrow(/couldn't tell which language/);
   });
 
   it('names the languages when only a translator is there and it lacks that pair', async () => {

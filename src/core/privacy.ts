@@ -46,30 +46,36 @@ export interface RedactionResult {
   count: number;
 }
 
-// Scripts written without spaces between words. Letters of these next to an address or number
-// don't make them part of a longer word.
+// Scripts written without spaces between words. Their letters right next to an address or a
+// number don't make it part of a longer word.
 const NO_SPACES =
-  '\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Hangul}\\p{Script=Thai}';
+  '\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Hangul}\\p{Script=Thai}' +
+  '\\p{Script=Lao}\\p{Script=Khmer}\\p{Script=Myanmar}\\p{Script=Tibetan}\\p{Script=Javanese}' +
+  '\\p{Script=Balinese}';
+/** Letters of scripts that put spaces between words, such as Latin or Cyrillic. */
+const SPACED_LETTER = `[\\p{L}--[${NO_SPACES}]]`;
 const NAME = `[[\\p{L}\\p{M}\\p{N}._%+\\-]--[${NO_SPACES}]]`;
 const LABEL = `[[\\p{L}\\p{M}\\p{N}\\-]--[${NO_SPACES}]]`;
 const TOP = `(?:[[\\p{L}\\p{M}]--[${NO_SPACES}]]{2,24}|中国|中國|香港|台灣|台湾)`;
+const DOMAIN = `@${LABEL}{1,63}(?:\\.${LABEL}{1,63}){0,8}\\.${TOP}`;
 // Emails in any script (Cyrillic, Devanagari…), found where a run of name characters starts and
-// with bounded parts, so it stays linear; Chinese or Japanese text around an address is left out.
-const EMAIL = new RegExp(
-  `(?<!${NAME})${NAME}{1,64}@${LABEL}{1,63}(?:\\.${LABEL}{1,63}){0,8}\\.${TOP}`,
+// with bounded parts, so it stays linear.
+const EMAIL = new RegExp(`(?<!${NAME})${NAME}{1,64}${DOMAIN}`, 'gv');
+// Then ASCII names stuck to other text, which the first pass can't separate from it.
+const ASCII_EMAIL = new RegExp(`(?<![A-Za-z0-9._%+\\-])[A-Za-z0-9._%+\\-]{1,64}${DOMAIN}`, 'gv');
+// Digits in any script (full-width, Bengali, Arabic-Indic…) and any kind of dash between them.
+const DASHES = '\\-\\u2010-\\u2015\\u2212\\uFF0D';
+// A dash next to the number only matters when a digit is on its other side: then the number is
+// part of a longer one.
+const CARD_CANDIDATE = new RegExp(
+  `(?<!\\p{Nd})(?<!\\p{Nd}-)(?:\\p{Nd}[ ${DASHES}]?){12,18}\\p{Nd}(?!\\p{Nd}|-\\p{Nd})`,
   'gv',
 );
-// Digits in any script (full-width, Bengali, Arabic-Indic…) and any kind of dash between them.
-const DASHES = '\\-\u2010-\u2015\u2212\uFF0D';
-const CARD_CANDIDATE = new RegExp(
-  `(?<![\\p{Nd}\\-])(?:\\p{Nd}[ ${DASHES}]?){12,18}\\p{Nd}(?![\\p{Nd}\\-])`,
-  'gu',
-);
-// Latin letters, "_" and digits next to a number make it part of a code or ID; letters of other
-// scripts don't ("お問い合わせは03-1234-5678まで", "010-1234-5678로").
+// Letters of spaced scripts, "_" and digits next to a number make it part of a code or ID; letters
+// of the others don't ("お問い合わせは03-1234-5678まで", "010-1234-5678로").
 const PHONE_CANDIDATE = new RegExp(
-  `(?<![A-Za-z_+\\p{Nd}])(?:\\+|00)?\\p{Nd}[\\p{Nd} ()./${DASHES}]{6,}\\p{Nd}(?![A-Za-z_\\p{Nd}])`,
-  'gu',
+  `(?<![${SPACED_LETTER}_+\\p{Nd}])(?:\\+|00)?\\p{Nd}[\\p{Nd} \\(\\)\\.\\/${DASHES}]{6,}\\p{Nd}(?![${SPACED_LETTER}_\\p{Nd}])`,
+  'gv',
 );
 
 // The zero of each run of ten digits, for scripts whose digits pages use.
@@ -80,6 +86,7 @@ const DIGIT_ZEROS = [
 
 /** Writes digits of any script as 0-9 and every dash as "-", so the shape checks below work. */
 function asciiShape(text: string): string {
+  if (!/[\u0080-\uffff]/.test(text)) return text;
   return [...text]
     .map((char) => {
       const code = char.codePointAt(0) ?? 0;
@@ -105,6 +112,39 @@ function luhnValid(digits: string): boolean {
   return sum % 10 === 0;
 }
 
+/** An ISBN-13 ("978-0-306-40615-7") has the shape of a phone number, but its check digit gives it away. */
+function isIsbn13(digits: string): boolean {
+  if (digits.length !== 13 || !/^97[89]/.test(digits)) return false;
+  const sum = [...digits].reduce((total, digit, i) => total + Number(digit) * (i % 2 ? 3 : 1), 0);
+  return sum % 10 === 0;
+}
+
+/**
+ * A card number in a run of digit groups: the whole run, or else the longest stretch of whole
+ * groups, so "1 4111 1111 1111 1111" still hides the card.
+ */
+function cardIn(run: string): { start: number; end: number } | undefined {
+  const groups = [...run.matchAll(/\p{Nd}+/gu)].map((m) => ({
+    start: m.index,
+    end: m.index + m[0].length,
+    digits: asciiShape(m[0]),
+  }));
+  // Digits before each group, to skip stretches of the wrong length without building them.
+  const before = [0];
+  for (const group of groups) before.push((before.at(-1) ?? 0) + group.digits.length);
+  for (let size = groups.length; size > 0; size--) {
+    for (let first = 0; first + size <= groups.length; first++) {
+      const length = (before[first + size] ?? 0) - (before[first] ?? 0);
+      if (length < 13 || length > 19) continue;
+      const stretch = groups.slice(first, first + size);
+      if (luhnValid(stretch.map((group) => group.digits).join(''))) {
+        return { start: stretch[0]?.start ?? 0, end: stretch.at(-1)?.end ?? 0 };
+      }
+    }
+  }
+  return undefined;
+}
+
 function looksLikePhone(match: string): boolean {
   const digits = match.replace(/\D/g, '');
   if (digits.length < 9 || digits.length > 15) return false;
@@ -125,8 +165,11 @@ export interface HiddenValue {
   value: string;
 }
 
-/** A placeholder as a model may write it back: "[email 1]", "[Email 1]", "［phone 2］"… */
-const PLACEHOLDER = /[[［]\s*(email|e-mail|phone|card number|card)\s*(\d+)\s*[\]］]/gi;
+/**
+ * A placeholder as a model may write it back: "[email 1]", "[Email 1]", "［phone ２］",
+ * "[PHONE_2]"…
+ */
+const PLACEHOLDER = /[[［]\s*(email|e-mail|phone|card number|card)[\s_-]*(\p{Nd}+)\s*[\]］]/giu;
 /**
  * Link and image addresses, where a hidden value must never be put back: loading or clicking one
  * would send it to that site. A Markdown target may itself hold placeholders ("[email 1]").
@@ -168,19 +211,30 @@ export class Redactor {
   redact(text: string, known: readonly HiddenValue[] = []): string {
     let result = text;
     for (const { kind, value } of [...known].sort((a, b) => b.value.length - a.value.length)) {
-      if (value && result.includes(value)) {
-        result = result.split(value).join(this.label(kind, value));
-      }
+      const parts = value ? result.split(value) : [];
+      if (parts.length < 2) continue;
+      result = parts.join(this.label(kind, value));
+      this.count += parts.length - 2;
     }
     result = result.replace(EMAIL, (match) => this.label('email', match));
+    result = result.replace(ASCII_EMAIL, (match) => this.label('email', match));
     result = result.replace(CARD_CANDIDATE, (match) => {
-      const digits = asciiShape(match).replace(/\D/g, '');
-      if (digits.length < 13 || digits.length > 19 || !luhnValid(digits)) return match;
-      return this.label('card number', match);
+      const card = cardIn(match);
+      if (!card) return match;
+      const { start, end } = card;
+      return (
+        match.slice(0, start) +
+        this.label('card number', match.slice(start, end)) +
+        match.slice(end)
+      );
     });
-    return result.replace(PHONE_CANDIDATE, (match) =>
-      looksLikePhone(asciiShape(match).trim()) ? this.label('phone', match) : match,
-    );
+    return result.replace(PHONE_CANDIDATE, (match, offset: number, whole: string) => {
+      const shape = asciiShape(match).trim();
+      if (!looksLikePhone(shape) || isIsbn13(shape.replace(/\D/g, ''))) return match;
+      if (/\bISBN(?:-1[03])?:?\s*$/i.test(whole.slice(Math.max(0, offset - 12), offset)))
+        return match;
+      return this.label('phone', match);
+    });
   }
 
   private original(kind: string, number: string): HiddenValue | undefined {
@@ -188,7 +242,12 @@ export class Redactor {
       .toLowerCase()
       .replace('e-mail', 'email')
       .replace(/^card$/, 'card number');
-    return this.originals.get(`[${name} ${number}]`);
+    return this.originals.get(`[${name} ${Number(asciiShape(number))}]`);
+  }
+
+  /** Every value hidden so far. */
+  values(): HiddenValue[] {
+    return [...this.originals.values()];
   }
 
   /** Puts the real values back where an answer uses the placeholders, except inside links. */
@@ -220,7 +279,15 @@ export class Redactor {
 
 /** Whether text still has a placeholder in it, e.g. one the model changed so it can't be restored. */
 export function hasPlaceholder(text: string): boolean {
-  return new RegExp(PLACEHOLDER.source, 'i').test(text);
+  return new RegExp(PLACEHOLDER.source, 'iu').test(text);
+}
+
+/**
+ * Takes the number out of placeholders left in an earlier answer ("[email 2]" becomes
+ * "[email]"): a new request numbers its own values, and the old number would point at one of them.
+ */
+export function unnumberPlaceholders(text: string): string {
+  return text.replace(PLACEHOLDER, (_match, kind: string) => `[${kind}]`);
 }
 
 /** Replaces emails, card numbers and phone numbers with numbered placeholders. */

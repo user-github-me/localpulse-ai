@@ -338,7 +338,9 @@ async function translateInParts(
  * say "en" around an email in Chinese.
  */
 async function sourceLanguage(provider: Provider, page: PromptPage): Promise<string | undefined> {
-  const detected = (await provider.detectLanguage?.(page.text)) ?? guessLanguage(page.text);
+  // "und" is the detector's way of saying it can't tell.
+  const reported = await provider.detectLanguage?.(page.text);
+  const detected = (reported === 'und' ? undefined : reported) ?? guessLanguage(page.text);
   const tag = detected ?? page.lang;
   return tag ? languageCode(tag) : undefined;
 }
