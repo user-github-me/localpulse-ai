@@ -100,6 +100,10 @@ const CONTEXTS: [string, string][] = [
   ['電話', ''],
   ['联系', '了解'],
   ["'", "'"],
+  // Another number in the same run.
+  ['030 1234567 – ', ''],
+  ['', ' / 030 7654321'],
+  ['Stand 12.03.2024 – ', ''],
 ];
 
 function leftIn(output: string, value: string): boolean {
@@ -122,12 +126,45 @@ describe('redaction corpus', () => {
     expect(leaked).toEqual([]);
   });
 
+  it('hides every card in a run, and addresses at Chinese or Japanese domains', () => {
+    expect(redactSensitive('Karte alt/neu: 4111 1111 1111 1111 5500 0000 0000 0004').text).toBe(
+      'Karte alt/neu: [card number 1] [card number 2]',
+    );
+    // An IMEI (also Luhn-checked) before a card doesn't shield the card.
+    expect(redactSensitive('356938035643809 4111111111111111').text).not.toContain('4111111111');
+    expect(redactSensitive('info@日本語.jp or service@清华大学.中国').text).toBe(
+      '[email 1] or [email 2]',
+    );
+    // The page's Markdown escapes "_": the whole address is still hidden.
+    expect(redactSensitive('Mail user\\_name@example.com').text).toBe('Mail [email 1]');
+  });
+
+  it('leaves numbers in parentheses, years and times that are not phones or cards', () => {
+    for (const text of [
+      'Host (192.168.100.200) is down.',
+      'Google Chrome (120.0.6099.129)',
+      'Order (123456789)',
+      '(1700000000)',
+      'Revenue 2016 2017 2018 2019 2020 2021',
+      'Departs 0600 0630 0700 0730 0800 0830 0900',
+    ]) {
+      expect(redactSensitive(text).count).toBe(0);
+    }
+    expect(redactSensitive('user\\_0207946095').count).toBe(0);
+  });
+
   it('hides two numbers in one run, and Chinese mobile numbers written without spaces', () => {
     expect(redactSensitive('Tel. +49 30 1234567 / 030 7654321').text).toBe(
       'Tel. [phone 1] / [phone 2]',
     );
     expect(redactSensitive('(415) 555-0132 (415) 555-0133').text).toBe('[phone 1] [phone 2]');
     expect(redactSensitive('手机：13800138000').text).toBe('手机：[phone 1]');
+    expect(redactSensitive('手机：13800138000 / 13900139000').text).toBe(
+      '手机：[phone 1] / [phone 2]',
+    );
+    expect(redactSensitive('Tel. 030 1234567 — 0171 1234567').text).toBe(
+      'Tel. [phone 1] — [phone 2]',
+    );
     // Without Chinese around it, an 11-digit number could be anything.
     expect(redactSensitive('Order 13800138000').count).toBe(0);
     // "_" inside a word still marks a code.

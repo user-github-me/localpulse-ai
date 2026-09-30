@@ -25,6 +25,12 @@ interface Normalized {
 
 const MARK = /^\p{M}$/u;
 
+/** Whether the line after the one at `index` starts with ">". */
+function nextLineQuoted(text: string, index: number): boolean {
+  const end = text.indexOf('\n', index);
+  return end !== -1 && /^[ \t]*>/.test(text.slice(end + 1, end + 16));
+}
+
 /** Hangul vowel and final-consonant jamo: in decomposed text they belong to the syllable before. */
 function isJamoTail(code: number): boolean {
   return (code >= 0x1160 && code <= 0x11ff) || (code >= 0xd7b0 && code <= 0xd7ff);
@@ -78,9 +84,13 @@ function normalize(original: string): Normalized {
     const ascii = code < 0x80 && i - start === 1;
     if (lineStart && !/^\s$/.test(raw)) {
       lineStart = false;
-      const marker = markerAllowed
-        ? /^(?:>[ \t]?)+(?:[-*+](?=[ \t]))?|^[-*+](?=[ \t])/.exec(original.slice(start, start + 16))
-        : null;
+      // Also a quoted email: lines that start with ">" one after another.
+      const marker =
+        markerAllowed || (raw === '>' && nextLineQuoted(original, start))
+          ? /^(?:>[ \t]?)+(?:[-*+](?=[ \t]))?|^[-*+](?=[ \t])/.exec(
+              original.slice(start, start + 16),
+            )
+          : null;
       if (marker) {
         i = start + marker[0].length;
         lineWasMarker = true;
@@ -160,26 +170,31 @@ function isGershayim(text: string, index: number): boolean {
   );
 }
 
-/** For each position, whether `mark` comes later on the same line. */
-function laterOnLine(text: string, mark: string): boolean[] {
-  const later = new Array<boolean>(text.length).fill(false);
+/** For each position, how many times `mark` comes later on the same line. */
+function laterOnLine(text: string, mark: string): number[] {
+  const later = new Array<number>(text.length).fill(0);
   for (let i = text.length - 2; i >= 0; i--) {
     const next = text[i + 1];
-    later[i] = next !== '\n' && (next === mark || (later[i + 1] ?? false));
+    later[i] = next === '\n' ? 0 : (later[i + 1] ?? 0) + (next === mark ? 1 : 0);
   }
   return later;
 }
 
+/** Quotes nest a few levels at most; deeper marks are ignored, which keeps the reading linear. */
+const MAX_DEPTH = 8;
+
 /**
  * Text between quote marks, read from left to right, so a closing mark never opens a quote. A
  * quote inside a quote (the "fast path" in “the so-called "fast path" is off”) stays part of it.
- * Models sometimes mix marks (“like this"): a straight mark closes a curly quote when no ” follows
- * on the line, and the other way round.
+ * Models sometimes mix marks (“like this"): a straight mark closes a curly quote when the curly
+ * marks after it on the line pair up among themselves, and a ” closes a straight quote when the
+ * straight marks after it do.
  */
 function quotedSpans(answer: string): { text: string; mark: string }[] {
   const spans: { text: string; mark: string }[] = [];
   const open: { mark: string; start: number }[] = [];
-  const curlyLater = laterOnLine(answer, '”');
+  const openLater = laterOnLine(answer, '“');
+  const closeLater = laterOnLine(answer, '”');
   const straightLater = laterOnLine(answer, '"');
   const close = (level: number, end: number) => {
     const closed = open[level];
@@ -200,11 +215,11 @@ function quotedSpans(answer: string): { text: string; mark: string }[] {
     const top = open.at(-1)?.mark;
     if (level >= 0) {
       close(level, i);
-    } else if (char === '"' && top === '“' && !curlyLater[i]) {
+    } else if (char === '"' && top === '“' && openLater[i] === closeLater[i]) {
       close(open.length - 1, i);
-    } else if (char === '”' && top === '"' && !straightLater[i]) {
+    } else if (char === '”' && top === '"' && (straightLater[i] ?? 0) % 2 === 0) {
       close(open.length - 1, i);
-    } else if (char in CLOSERS) {
+    } else if (char in CLOSERS && open.length < MAX_DEPTH) {
       open.push({ mark: char, start: i + 1 });
     }
   }
@@ -230,7 +245,8 @@ export function extractQuotes(answer: string): string[] {
   for (const line of [...answer.split('\n'), '']) {
     const quoted = /^\s*>\s?(.*)$/.exec(line);
     if (quoted) {
-      blockquote.push(quoted[1] ?? '');
+      // A quoted list: its bullets aren't part of the quote.
+      blockquote.push((quoted[1] ?? '').replace(/^[-*+][ \t]+/, ''));
     } else if (blockquote.length) {
       add(blockquote.join(' ').replace(/^["“]|["”]$/g, ''));
       blockquote.length = 0;

@@ -66,14 +66,26 @@ describe('quote pairs', () => {
       extractQuotes(
         'He wrote “the plan is bad" and then "we should stop the whole project now".\n' +
           'It says "the plan is really bad” and more.\n' +
-          'It says “the 12" pizza is big and tasty” here.',
+          'It says “the 12" pizza is big and tasty” here.\n' +
+          'It says "the budget is far too small” and "we should stop the project today".\n' +
+          'He wrote “the design is so bad" and “we must stop the whole thing right now”.',
       ),
     ).toEqual([
       'the plan is bad',
       'we should stop the whole project now',
       'the plan is really bad',
       'the 12" pizza is big and tasty',
+      'the budget is far too small',
+      'we should stop the project today',
+      'the design is so bad',
+      'we must stop the whole thing right now',
     ]);
+  });
+
+  it('stays fast on an answer full of unmatched quote marks', () => {
+    const start = performance.now();
+    extractQuotes('“'.repeat(100_000) + '"'.repeat(100_000));
+    expect(performance.now() - start).toBeLessThan(1000);
   });
 
   it('takes a " between Hebrew letters for an abbreviation, not the end of a quote', () => {
@@ -135,6 +147,20 @@ describe('quote matching', () => {
     expect(checkQuotes('"Preheat the oven to 200 degrees Mix the flour"', list)[0]?.found).toBe(
       true,
     );
+  });
+
+  it('reads quoted email replies and quoted lists', () => {
+    const reply =
+      'John Smith wrote:\n> I think we should postpone the\n> release until all the tests pass.';
+    expect(
+      checkQuotes('"I think we should postpone the release until all the tests pass"', reply)[0]
+        ?.found,
+    ).toBe(true);
+    const page = 'Steps:\n\n-   Preheat the oven to 200 degrees\n-   Mix the flour and the eggs';
+    expect(
+      checkQuotes('> - Preheat the oven to 200 degrees\n> - Mix the flour and the eggs', page)[0]
+        ?.found,
+    ).toBe(true);
   });
 
   it('never drops the number a quote starts with', () => {

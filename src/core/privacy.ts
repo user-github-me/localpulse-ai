@@ -46,8 +46,8 @@ export interface RedactionResult {
   count: number;
 }
 
-// Chinese, Japanese, Korean and Thai are written without spaces, and addresses in them are rare:
-// their letters next to an address aren't part of it ("请联系jane@example.com了解详情").
+// Chinese, Japanese, Korean and Thai are written without spaces: their letters right before an
+// address aren't part of its name ("请联系jane@example.com了解详情").
 const CJK_THAI =
   '\\p{Script=Han}\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Hangul}\\p{Script=Thai}';
 // Other scripts written without spaces may be part of an address, but never of its ending.
@@ -55,7 +55,7 @@ const NO_SPACES =
   `${CJK_THAI}\\p{Script=Lao}\\p{Script=Khmer}\\p{Script=Myanmar}\\p{Script=Tibetan}` +
   '\\p{Script=Javanese}\\p{Script=Balinese}';
 const NAME = `[[\\p{L}\\p{M}\\p{N}._%+\\-]--[${CJK_THAI}]]`;
-const LABEL = `[[\\p{L}\\p{M}\\p{N}\\-]--[${CJK_THAI}]]`;
+const LABEL = '[\\p{L}\\p{M}\\p{N}\\-]';
 const TOP = `(?:[[\\p{L}\\p{M}]--[${NO_SPACES}]]{2,24}|中国|中國|香港|台灣|台湾)`;
 const DOMAIN = `@${LABEL}{1,63}(?:\\.${LABEL}{1,63}){0,8}\\.${TOP}`;
 // Emails in any script (Cyrillic, Devanagari…), found where a run of name characters starts and
@@ -81,9 +81,9 @@ const PHONE_CANDIDATE = new RegExp(
   `(?<!${CODE_CHAR}|\\+|[A-Za-z\\p{Nd}]_)(?:\\+|00|\\()?\\p{Nd}[\\p{Nd} \\(\\)\\.\\/${DASHES}]{6,}\\p{Nd}(?!${CODE_CHAR}|_[A-Za-z\\p{Nd}])`,
   'gv',
 );
-// Where one run holds several numbers: " / " between them, a space before "(" or "+", or two
-// spaces ("030 1234567 / 030 7654321", "(415) 555-0132 (415) 555-0133").
-const NUMBER_BREAK = /(\s*\/\s+|\s+\/\s*|\s+(?=[+(])|\s{2,})/;
+// Where one run holds several numbers: " / " or a spaced dash between them, a space before "(" or
+// "+", or two spaces ("030 1234567 / 030 7654321", "(415) 555-0132 (415) 555-0133").
+const NUMBER_BREAK = /(\s*\/\s+|\s+\/\s*|\s+[-\u2010-\u2015\u2212\uFF0D]\s+|\s+(?=[+(])|\s{2,})/;
 
 // The zero of each run of ten digits, for scripts whose digits pages use.
 const DIGIT_ZEROS = [
@@ -147,7 +147,7 @@ function cardGrouping(lengths: readonly number[]): boolean {
  * stretch of whole groups written the way cards are, so "Order 1234 4111 1111 1111 1111" hides the
  * card but a list of page numbers stays.
  */
-function cardIn(run: string): { start: number; end: number } | undefined {
+function cardIn(run: string, partial = false): { start: number; end: number } | undefined {
   const groups = [...run.matchAll(/\p{Nd}+/gu)].map((m) => ({
     start: m.index,
     end: m.index + m[0].length,
@@ -160,12 +160,13 @@ function cardIn(run: string): { start: number; end: number } | undefined {
     for (let first = 0; first + size <= groups.length; first++) {
       const length = (before[first + size] ?? 0) - (before[first] ?? 0);
       if (length < 13 || length > 19) continue;
-      // Part of the run: written as cards are, which always starts with four digits when grouped.
-      if (size < groups.length && size > 1 && groups[first]?.digits.length !== 4) continue;
+      // Part of a run counts only when written as cards are, and starts as card numbers do
+      // (2-6), so rows of years (2016 2017…) or times (0600 0630…) stay.
+      const part = partial || size < groups.length;
+      if (part && size > 1 && groups[first]?.digits.length !== 4) continue;
+      if (part && !/^(?:[3-6]|2[2-7])/.test(groups[first]?.digits ?? '')) continue;
       const stretch = groups.slice(first, first + size);
-      if (size < groups.length && !cardGrouping(stretch.map((group) => group.digits.length))) {
-        continue;
-      }
+      if (part && !cardGrouping(stretch.map((group) => group.digits.length))) continue;
       const digits = stretch.map((group) => group.digits).join('');
       if (luhnValid(digits) && !isIsbn13(digits)) {
         return { start: stretch[0]?.start ?? 0, end: stretch.at(-1)?.end ?? 0 };
@@ -180,7 +181,9 @@ function cardIn(run: string): { start: number; end: number } | undefined {
  * text, a mobile number is often written without spaces ("手机：13800138000").
  */
 function isPhone(run: string, before: string): boolean {
-  const shape = asciiShape(run).trim();
+  // A match may start with "(" so that "(415) 555-0132" is hidden whole, but a "(" alone doesn't
+  // make "(192.168.100.200)" a phone number.
+  const shape = asciiShape(run).trim().replace(/^\(/, '');
   if (isIsbn13(shape.replace(/\D/g, ''))) return false;
   if (/^1[3-9]\d{9}$/.test(shape) && /\p{Script=Han}/u.test(before)) return true;
   return looksLikePhone(shape);
@@ -253,7 +256,8 @@ export class Redactor {
    * back into an answer: they're hidden again word for word, whatever surrounds them.
    */
   redact(text: string, known: readonly HiddenValue[] = []): string {
-    let result = text;
+    // The page's Markdown writes "_" as "\_", which would split "user\_name@example.com".
+    let result = text.replace(/\\(?=_)/g, '');
     for (const { kind, value } of [...known].sort((a, b) => b.value.length - a.value.length)) {
       const parts = value ? result.split(value) : [];
       if (parts.length < 2) continue;
@@ -262,26 +266,29 @@ export class Redactor {
     }
     result = result.replace(EMAIL, (match) => this.label('email', match));
     result = result.replace(ASCII_EMAIL, (match) => this.label('email', match));
-    result = result.replace(CARD_CANDIDATE, (match, offset: number, whole: string) => {
-      const card = isbnBefore(whole, offset) ? undefined : cardIn(match);
-      if (!card) return match;
+    // Every card in a run: "old/new: 4111 1111 1111 1111 5500 0000 0000 0004" holds two.
+    const hideCards = (run: string, partial: boolean): string => {
+      const card = cardIn(run, partial);
+      if (!card) return run;
       const { start, end } = card;
       return (
-        match.slice(0, start) +
-        this.label('card number', match.slice(start, end)) +
-        match.slice(end)
+        hideCards(run.slice(0, start), true) +
+        this.label('card number', run.slice(start, end)) +
+        hideCards(run.slice(end), true)
       );
-    });
+    };
+    result = result.replace(CARD_CANDIDATE, (match, offset: number, whole: string) =>
+      isbnBefore(whole, offset) ? match : hideCards(match, false),
+    );
     return result.replace(PHONE_CANDIDATE, (match, offset: number, whole: string) => {
       if (isbnBefore(whole, offset)) return match;
-      if (isPhone(match, whole.slice(Math.max(0, offset - 12), offset))) {
-        return this.label('phone', match);
-      }
+      const before = whole.slice(Math.max(0, offset - 12), offset);
+      if (isPhone(match, before)) return this.label('phone', match);
       const parts = match.split(NUMBER_BREAK);
       if (parts.length < 3) return match;
       // Separators are at the odd places.
       return parts
-        .map((part, i) => (i % 2 === 0 && isPhone(part, '') ? this.label('phone', part) : part))
+        .map((part, i) => (i % 2 === 0 && isPhone(part, before) ? this.label('phone', part) : part))
         .join('');
     });
   }
