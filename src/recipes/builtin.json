@@ -1,0 +1,90 @@
+[
+  {
+    "id": "summarize",
+    "label": "Summarize",
+    "icon": "file-text",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Summarize this in 3–5 short paragraphs. Keep the names, numbers and conclusions that matter.",
+    "summary": {
+      "type": "tldr",
+      "length": "medium"
+    }
+  },
+  {
+    "id": "key-points",
+    "label": "Key points",
+    "icon": "list",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "List the key points as short bullet points, most important first.",
+    "summary": {
+      "type": "key-points",
+      "length": "medium"
+    }
+  },
+  {
+    "id": "explain-code",
+    "label": "Explain code",
+    "icon": "code",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Explain what the code does: its purpose, how it works step by step, and anything surprising or risky. Quote short snippets when it helps."
+  },
+  {
+    "id": "simplify",
+    "label": "Simplify",
+    "icon": "baby",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Explain this in simple words for someone new to the topic. Use short sentences and one everyday example."
+  },
+  {
+    "id": "action-items",
+    "label": "Action items",
+    "icon": "list-checks",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "List every action item or task as a Markdown checklist (- [ ] …). Include who is responsible and the deadline when stated. If there are none, say so."
+  },
+  {
+    "id": "translate",
+    "label": "Translate",
+    "icon": "languages",
+    "input": "page",
+    "mode": "transform",
+    "prompt": "Translate this into {{language}}. Keep the formatting. Reply with only the translation."
+  },
+  {
+    "id": "explain",
+    "label": "Explain",
+    "icon": "lightbulb",
+    "input": "selection",
+    "mode": "reduce",
+    "prompt": "Explain this clearly: what it means, why it matters, and any terms a newcomer wouldn't know."
+  },
+  {
+    "id": "rewrite",
+    "label": "Rewrite",
+    "icon": "pen-line",
+    "input": "selection",
+    "mode": "transform",
+    "prompt": "Rewrite this to be clearer and more concise. Keep the meaning, the language and the formatting. Reply with only the rewritten text."
+  },
+  {
+    "id": "proofread",
+    "label": "Proofread",
+    "icon": "spell-check",
+    "input": "selection",
+    "mode": "transform",
+    "prompt": "Fix spelling, grammar and punctuation in this text. Keep the wording, meaning, language and formatting otherwise unchanged. Reply with only the corrected text."
+  },
+  {
+    "id": "compare",
+    "label": "Compare",
+    "icon": "columns",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Compare these pages: what they agree on, where they differ, and which suits what need. Use a table if it helps."
+  }
+]

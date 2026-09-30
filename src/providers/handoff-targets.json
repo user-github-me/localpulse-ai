@@ -1,0 +1,22 @@
+[
+  {
+    "id": "chatgpt",
+    "label": "ChatGPT",
+    "newChatUrl": "https://chatgpt.com/"
+  },
+  {
+    "id": "claude",
+    "label": "Claude",
+    "newChatUrl": "https://claude.ai/new"
+  },
+  {
+    "id": "gemini",
+    "label": "Gemini",
+    "newChatUrl": "https://gemini.google.com/app"
+  },
+  {
+    "id": "perplexity",
+    "label": "Perplexity",
+    "newChatUrl": "https://www.perplexity.ai/"
+  }
+]

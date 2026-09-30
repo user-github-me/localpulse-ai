@@ -1,0 +1,49 @@
+name: Bug report
+description: Something doesn't work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Please don't paste API keys, personal data or private page content.
+        To report a security problem, use **Security → Report a vulnerability** instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a public page, e.g. https://en.wikipedia.org/wiki/Web_browser
+        2. Click Summarize
+        3. …
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Where did the answer come from?
+      options:
+        - Built-in model (Gemini Nano)
+        - Ollama, LM Studio or llama.cpp
+        - In-browser model (WebLLM)
+        - Cloud API
+        - Not sure, or there was no answer
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: Chrome 140, Brave 1.82, Edge 140, Firefox 143…
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: LocalPulse version
+      description: Shown on the browser's extensions page.
+      placeholder: 1.0.0

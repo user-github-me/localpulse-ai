@@ -1,0 +1,433 @@
+# English UI text. To translate LocalPulse, copy this file to <language>.yml (e.g. bn.yml, es.yml)
+# and translate the values. Keep {placeholders} and $1 as they are. See CONTRIBUTING.md.
+
+extName: LocalPulse AI
+extDescription: Summarize and chat with any page in the side panel, using on-device AI first. Open source, no tracking.
+actionTitle: Open LocalPulse AI
+commandSummarize: Summarize the current page
+
+common:
+  close: Close
+  cancel: Cancel
+  delete: Delete
+  tryAgain: Try again
+  preview: Preview
+  continue: Continue
+  settings: Settings
+
+recipes:
+  summarize: Summarize
+  keyPoints: Key points
+  explainCode: Explain code
+  simplify: Simplify
+  actionItems: Action items
+  translate: Translate
+  explain: Explain
+  rewrite: Rewrite
+  proofread: Proofread
+  compare: Compare
+
+menu:
+  root: LocalPulse AI
+  summarizePage: Summarize this page
+  explain: Explain
+  summarize: Summarize
+  simplify: Simplify
+  rewrite: Rewrite more clearly
+  translate: Translate
+
+status:
+  checking: Checking…
+  notSetUp: Not set up
+  cloudAsks: Cloud, asks before sending
+  cloud: Cloud
+  onDevice: On this device
+  chooseProvider: Choose where answers come from
+  newChat: New chat
+  history: History
+  closeHistory: Close history
+  menuLabel: Where answers come from
+  checkingProviders: Checking providers…
+  default: Default
+  makeDefault: Make default
+  turnOn: Turn on
+  manageProviders: Add or manage providers
+
+providerState:
+  readyCloud: Ready, runs in the cloud
+  readyDevice: Ready, runs on this device
+  ready: Ready
+  needsDownload: Needs a one-time download
+  downloading: Downloading, {percent}%
+  noKey: Needs an API key
+  noModel: Pick a model in settings
+  noModelShort: Needs a model
+  noPermission: Needs permission to connect
+  noServer: Needs a server address
+  unsupported: Not available in this browser
+
+context:
+  cantRead: This page can't be read
+  couldntRead: Couldn't read this page
+  reading: Reading this tab…
+  empty: Open a web page to ask about it, or open a file.
+  openFile: Open a PDF or text file
+  fileOnComputer: File on this computer
+  pdfPages:
+    1: PDF, 1 page
+    n: PDF, $1 pages
+  words:
+    1: 1 word
+    n: $1 words
+  selection: Your selection, {words}
+  tokens: (about {tokens} tokens)
+  cutToFit: Cut to fit
+  noTranscript: No transcript found
+  closeFile: Close file
+  whatToRead: What to read
+  selectedText: Selected text
+  wholePage: Whole page
+  previewTitle: What the AI will read
+  previewNote: This text is sent to the provider shown at the top when you ask something. On-device providers keep it on this computer.
+  previewLabel: Text the AI will read
+  pdfAccessTitle: LocalPulse needs access to {host} to read this PDF
+  pdfAccessBody: Browsers don't let extensions read their PDF viewer, so LocalPulse downloads the file itself. It stays on this computer.
+  allowHost: Allow access to {host}
+  accessTitle: LocalPulse needs your OK to read this tab
+  accessBody: Click the LocalPulse icon in the toolbar, or press {shortcut}, to let it read this tab. Browsers ask again for each tab unless you allow all sites.
+  allowAllSites: Allow on all sites
+  restrictedFile: To read files on this computer, turn on "Allow access to file URLs" for LocalPulse in the extensions page.
+  restrictedPage: Browsers don't let extensions read this kind of page. You can paste text into the chat instead.
+  noContent: The page didn't return any content.
+  readingPdf: Reading the PDF…
+  readingPdfPage: Reading the PDF, page {page} of {total}…
+  pdfFailed: Couldn't read this PDF. {error}
+
+files:
+  drop: Drop a PDF or text file to ask about it. It stays on this computer.
+  unsupported: LocalPulse can read PDFs and text files.
+  reading: Reading {name}…
+  readingPage: Reading {name}, page {page} of {total}…
+  failed: Couldn't read {name}. {error}
+
+tabs:
+  add: Add tabs
+  change: Change tabs
+  dialogTitle: Read other tabs too
+  dialogNote: Pick tabs to read together with this page, for example to compare them.
+  none: There are no other web pages open in this window.
+  readOnlyThis: Read only this page
+  readCount: Read {count} tabs
+  listLabel: Other tabs being read
+  stopReading: Stop reading {title}
+  count: '{count} tabs'
+
+actions:
+  label: Quick actions
+
+conversation:
+  label: Conversation
+  emptyTitle: Ask about the page you're reading.
+  emptyBody: 'Pick an action above or type a question. The light at the top shows where the answer is written: green on this device, amber in the cloud.'
+  answerReady: Answer from {provider} is ready.
+  selectedTextOn: Selected text on {site}
+  writingOnDevice: Writing on this device with {provider}
+  writingCloud: Writing in the cloud with {provider}
+  stoppedOnDevice: Stopped. Written on this device by {provider}
+  stoppedCloud: Stopped. Written in the cloud by {provider}
+  failed: "{provider} couldn't answer"
+  answeredOnDevice: Answered on this device by {provider}
+  answeredCloud: Answered in the cloud by {provider}
+  translatedOnDevice: Translated on this device by the browser's built-in translator
+  thinking: Thinking…
+  readInParts: Long page, read in {count} parts.
+  retrieval: Based on the {used} of {total} sections most related to your question.
+  redacted:
+    1: 1 email, phone or card number was hidden before sending.
+    n: $1 emails, phone or card numbers were hidden before sending.
+  leftOut:
+    1: 1 earlier answer about another page wasn't sent to {provider}.
+    n: $1 earlier answers about other pages weren't sent to {provider}.
+  copy: Copy answer
+  copied: Copied
+  replace: Replace selection
+  replaced: Replaced the selected text on the page.
+  replaceFailed: Couldn't replace it. Select the text in the field again, then try once more.
+  switched: "{failed} couldn't answer ({reason}) so {next} answered instead."
+
+turn:
+  readingPart: Reading part {part} of {total}…
+  combining: Combining notes ({part} of {total})…
+  writingAnswer: Writing the answer…
+  writingSummary: Writing the summary…
+  downloadingTranslator: Downloading the browser's translator for this language (only the first time)…
+  part: Part {part} of {total}…
+
+quotes:
+  missing:
+    1: $1 quote is not on the page
+    n: $1 quotes are not on the page
+  missingOf: '{missing} of {total} quotes are not on the page'
+  checked:
+    1: 1 quote checked against the page
+    n: $1 quotes checked against the page
+  found: Found on the page.
+  notFound: 'Not found on the page: treat this quote with care.'
+  show: Show on page
+  showFailed: Couldn't find it on the page, perhaps it has changed.
+
+composer:
+  askPage: Ask about this page
+  askAnything: Ask anything
+  send: Send
+  stop: Stop
+
+consent:
+  title: Send to {provider}?
+  whatSelection: The {words} words you selected
+  whatTabs: About {words} words from {count} tabs
+  whatPage: About {words} words from this page
+  whatQuestion: Your question
+  body: '{what} will be sent to {provider}, which runs in the cloud, not on this computer.'
+  bodyHost: '{what} on {host} will be sent to {provider}, which runs in the cloud, not on this computer.'
+  terms: Read {provider}'s terms
+  sendOnce: Send this time
+  sendSite: Always send pages from {host}
+  sendAlways: Always send to {provider}
+  useAlternative: Use {provider} on this device instead
+  dontSend: Don't send
+
+setup:
+  title: Choose where answers come from
+  intro: 'No AI is ready to answer {request} yet. Any of these works:'
+  builtinTitle: '{model}, built into your browser'
+  builtinBody: 'Free and private: answers never leave this computer. Needs a one-time download of a few gigabytes.'
+  webllmBody: 'A small AI model that runs inside the browser. Free and private: answers never leave this computer. One-time download of under a gigabyte.'
+  turnOn: Turn on {model}
+  downloading: Downloading, {percent}%. You can keep browsing.
+  localTitle: An AI app on this computer
+  localBody: Ollama or LM Studio. Also private.
+  localButton: Connect a local app
+  keyTitle: Your own API key
+  keyBody: Gemini, OpenRouter, Groq and others have free plans. Pages you ask about are sent to that company, and LocalPulse asks you first.
+  keyButton: Add an API key
+  handoffTitle: A chat app you already use
+  handoffBody: Opens the site with your request ready. You press Send there.
+  cloudBlocked: Cloud providers are off for this page, because of Local-only mode or your list of sites that never go to the cloud.
+  why: Why nothing is ready
+  ready: '{provider} is ready.'
+
+handoff:
+  continueIn: Continue in…
+  menuTitle: Ask in a chat app you already use
+  menuBody: LocalPulse opens the site with the question ready. You press Send there.
+  includeText: Include the page text (copied to your clipboard, never put in the link)
+  copied: Prompt copied. In {target}, paste it with {paste} and press Send.
+  opened: Opened {target}.
+
+history:
+  title: History
+  listLabel: Saved conversations
+  off: History is off, so new conversations aren't saved.
+  changeInSettings: Change this in settings
+  empty: No saved conversations yet.
+  download: Download as Markdown
+  delete: Delete conversation
+  savedLocally: Saved only on this computer.
+  deleteAll: Delete all history
+
+toast:
+  allowTab: Allow LocalPulse to read this tab first.
+  pdfNotReady: Can't read this PDF yet.
+  noText: This page has no text to read.
+  openPage: Open a web page first.
+
+markdown:
+  image: Image
+  imageAlt: 'Image: {alt}'
+  downloadCsv: Download CSV
+
+options:
+  title: LocalPulse settings
+  sections: Settings sections
+  providers: Where answers come from
+  quickActions: Quick actions
+  privacy: Privacy
+  answers: Answers and appearance
+  about: About
+  providersIntro: LocalPulse uses the first provider in this list that's ready. Providers on this device come first by default. Cloud providers always ask before a page is sent to them.
+  cloud: Cloud
+  onDevice: On this device
+  turnedOff: turned off
+  moveUp: Move up
+  moveDown: Move down
+  on: On
+  addLocal: Add an app on this computer
+  addLocalNote: 'Private: pages stay on your machine.'
+  addCloud: Add a cloud provider
+  addCloudNote: Uses your own API key. Many have free plans.
+  answerLanguage: Answer language
+  sameAsBrowser: Same as the browser ({language})
+  answerLanguageNote: Gemini Nano writes English, Spanish, Japanese, German and French. For other languages, LocalPulse uses another provider.
+  theme: Theme
+  themeSystem: Match the system
+  themeLight: Light
+  themeDark: Dark
+  aboutVersion: LocalPulse AI {version}. Free and open source under the MIT license.
+  aboutPrivacy: 'LocalPulse has no servers and collects nothing: no analytics, no crash reports, no accounts. Pages you ask about stay on this computer unless you choose a cloud provider, and then they go straight from your browser to that provider.'
+  showWelcome: Show the welcome guide again
+
+builtin:
+  ready: '{model} is ready. Answers stay on this computer.'
+  needsDownload: '{model} is supported here but not downloaded yet (a one-time download of a few GB).'
+  downloading: '{model} is downloading.'
+  summariesOnly: This browser's built-in model can still write summaries and translations on-device.
+  checking: Checking…
+  downloadingPercent: Downloading, {percent}%. You can close this page.
+  download: Download {model}
+  requirements: Requirements
+  req1: Chrome 138 or newer on Windows 10/11, macOS 13+, Linux or a Chromebook Plus.
+  req2: A GPU with more than 4 GB of video memory, or 16 GB of RAM and 4 CPU cores.
+  req3: 22 GB of free disk space. Chrome removes the model if free space drops below 10 GB.
+  req4: Check the model's status at {url}.
+  req5: Brave, Opera and Vivaldi don't include a built-in model. Use a local app or an API key.
+  unavailable: "This computer or browser can't run the built-in model (hardware, disk space or a policy)."
+  missing: This browser has no built-in AI model.
+
+webllm:
+  checking: Checking WebGPU…
+  noGpu: "This browser or computer doesn't support WebGPU, so in-browser models can't run here. Use the built-in model, a local app, or an API key instead."
+  intro: These models run inside the browser on your graphics card, so answers never leave this computer. Each is downloaded once from Hugging Face and stored in the browser. They read about 3,000 words at a time; longer pages are read in parts.
+  size: '{download} GB download, about {memory} GB of graphics memory.'
+  download: Download
+  downloading: Downloading, {percent}%.
+  inBrowser: '{model} in the browser'
+  notes:
+    llama1b: Small and fast. Runs on most computers.
+    qwen2b: Better answers, and good in many languages.
+    llama3b: Best answers of these. Needs a stronger computer.
+
+endpoint:
+  serverAddress: Server address
+  needsPermission: LocalPulse needs your permission to connect to this app on your computer.
+  allowConnection: Allow connection
+  apiKey: API key
+  savedLocal: Saved on this device.
+  savedSession: Saved until the browser closes.
+  removeKey: Remove key
+  keyRemoved: The server address changed, so the API key was removed and cloud consent reset. Enter the key again if it belongs to the new server.
+  pasteKey: Paste your key
+  save: Save
+  forgetKey: Forget the key when the browser closes
+  getKey: Get a key at {site}. It's stored only in this browser and sent only to {provider}.
+  model: Model
+  chooseModel: Choose a model
+  modelName: Model name
+  loadModels: Load models
+  loadingModels: Loading…
+  noModels: The server has no models. Download one first.
+  advanced: Advanced
+  contextSize: Context size (tokens)
+  contextNote: How much text the model can read at once. Longer pages are read in parts.
+  test: Test connection
+  remove: Remove
+  terms: Terms
+  finishSetup: Finish the setup above first.
+  connected: 'Connected. The model replied: "{reply}"'
+
+privacy:
+  localOnly: Local-only mode
+  localOnlyNote: Pages and questions never go to cloud providers, even ones you've set up.
+  redact: Hide emails, phone numbers and card numbers from cloud providers
+  redactNote: They're replaced with placeholders before a page is sent.
+  fallback: Use a cloud provider when an on-device one fails
+  fallbackNote: Off by default, so a failure never moves your page to the cloud without you choosing it.
+  history: Keep chat history on this computer
+  historyNote: Questions and answers are saved in this browser only, never uploaded. Page text isn't saved.
+  preferSelection: Use selected text when there is a selection
+  preferSelectionNote: Otherwise LocalPulse reads the whole page.
+  sites: Sites that never go to the cloud
+  sitesNote: One per line, for example your bank or email. Subdomains are included. These pages can still use on-device AI.
+  consentTitle: Cloud permissions you've given
+  consentNone: None. LocalPulse asks before sending a page to a cloud provider.
+  consentEvery: '{provider} on every site'
+  consentSite: '{provider} on {host}'
+  askAgain: Ask again every time
+  historyTitle: Chat history
+  historyDeleteNote: Delete every saved conversation from this computer.
+  historyDeleted: History deleted
+  deleteAll: Delete all history
+  readingTitle: Reading pages
+  allSitesOn: LocalPulse can read any tab while its panel is open. It reads a page only when you use it.
+  allSitesOff: LocalPulse reads a tab only after you click its icon there, or on sites you allowed.
+  stopAllSites: Stop allowing all sites
+
+quick:
+  shown: Shown in the panel
+  yours: yours
+  hide: Hide
+  noneShown: None. The panel shows only the question box.
+  notShown: Not shown
+  show: Show {label}
+  yoursTitle: Your quick actions
+  edit: Edit
+  editTitle: Edit "{label}"
+  newTitle: New quick action
+  name: Name
+  namePlaceholder: Pros and cons
+  prompt: What the AI should do
+  promptPlaceholder: List the main pros and cons as two short bullet lists.
+  promptNote: Write {token} to insert the answer language, for example "Answer in {token}".
+  reads: It reads
+  readsPage: The page (or the selected text)
+  readsSelection: Only the selected text
+  longPages: For long pages
+  modeReduce: Read it in parts, then answer once
+  modeTransform: Process each part and join the results (for rewriting or translating)
+  modeQa: Use only the parts that match the prompt
+  saveChanges: Save changes
+  add: Add quick action
+  import: Import from a file
+  export: Export yours
+  community: The project's community-recipes folder has more quick actions to import. Importing only adds prompts; it can't run code.
+  saved: Saved "{label}".
+  imported:
+    1: Imported 1 quick action.
+    n: Imported $1 quick actions.
+  importFailed: "Couldn't import that file: {error}"
+  moveUp: Move {label} up
+  moveDown: Move {label} down
+
+onboarding:
+  step1: What LocalPulse reads
+  step2: Where answers come from
+  step3: Start using it
+  steps: Setup steps
+  readsTitle: LocalPulse reads the page you ask about.
+  reads1: When you use LocalPulse on a tab, it reads that page's text so the AI can answer. It doesn't read tabs you don't use it on.
+  reads2: The text stays on this computer when the answer comes from on-device AI. If you add a cloud provider with your own API key, LocalPulse asks before sending a page to it, and the page goes straight from your browser to that company.
+  reads3: 'LocalPulse has no servers. It collects nothing: no analytics, no crash reports, no accounts.'
+  chooseTitle: Choose where answers come from.
+  checking: Checking what this browser can run…
+  ready: '{model} is ready.'
+  readyBody: Your browser's built-in AI runs on this computer, so pages never leave it. You don't need to set up anything else.
+  downloadBody: Your browser includes {model}, an AI model that runs on this computer. It needs a one-time download of a few gigabytes.
+  downloading: Downloading, {percent}%. You can continue; it finishes in the background.
+  download: Download {model}
+  unsupported: This browser or computer can't run a built-in model. Brave, Opera and Vivaldi don't include one, and Chrome needs a recent computer. Pick another option below.
+  inBrowserTitle: A small model inside the browser
+  inBrowserBody: Works in Brave, Opera, Edge and Chrome with a recent graphics card. One download of under a gigabyte, then it works offline.
+  inBrowserButton: Choose a model
+  localTitle: An AI app on this computer
+  localBody: Ollama or LM Studio run models locally, so they're private too.
+  localButton: Connect a local app
+  keyTitle: Your own API key
+  keyBody: Google Gemini, OpenRouter, Groq and Mistral have free plans. Pages you ask about go to that company, and LocalPulse asks you first.
+  keyButton: Add an API key
+  handoffTitle: A chat app you already use
+  handoffBody: Without any setup, LocalPulse can open ChatGPT, Claude, Gemini or Perplexity with your question ready to send.
+  doneTitle: You're ready.
+  tip1: Pin LocalPulse to the toolbar from the extensions menu, then click it on any page. You can also press {shortcut}.
+  tip2: Select text and right-click to explain, summarize or translate just that part.
+  tip3: 'The light at the top of the panel shows where answers are written: green on this device, amber in the cloud.'
+  open: Open LocalPulse

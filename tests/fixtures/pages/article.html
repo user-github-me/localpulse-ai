@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>How WebGPU changes graphics on the web | Example Blog</title>
+    <meta property="og:site_name" content="Example Blog" />
+  </head>
+  <body>
+    <header>
+      <nav>
+        <a href="/">Home</a> <a href="/archive">Archive</a> <a href="/subscribe">Subscribe to our newsletter</a>
+      </nav>
+    </header>
+    <main>
+      <article>
+        <h1>How WebGPU changes graphics on the web</h1>
+        <p class="byline">By Ada Lovelace</p>
+        <p>
+          WebGPU is a new web standard that gives pages direct, modern access to the graphics card.
+          It replaces much of what WebGL offered with an API designed around how today's GPUs
+          actually work. For developers this means lower overhead, better multithreading and, for
+          the first time on the web, general-purpose compute shaders that run next to rendering.
+        </p>
+        <p>
+          The <a href="https://www.w3.org/TR/webgpu/">specification</a> was developed by a W3C
+          working group with input from every major browser vendor. Chrome shipped it first, and
+          other browsers followed on their own schedules. Because the API maps closely to Vulkan,
+          Metal and Direct3D 12, browsers can translate calls efficiently.
+        </p>
+        <h2>Why compute shaders matter</h2>
+        <p>
+          Compute shaders let a page run massively parallel work on the GPU without drawing
+          anything. Machine learning inference is the headline use: libraries can now run language
+          models in the browser at useful speeds. Physics simulations, image processing and video
+          effects benefit in the same way, since they all apply the same small program to large
+          amounts of data.
+        </p>
+        <p>Here is the smallest useful setup: request an adapter, then a device.</p>
+        <pre><code class="language-js">const adapter = await navigator.gpu.requestAdapter();
+const device = await adapter.requestDevice();
+console.log(device.limits.maxBufferSize);</code></pre>
+        <h2>Browser support at a glance</h2>
+        <table>
+          <thead>
+            <tr><th>Browser</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Chrome</td><td>Shipped</td></tr>
+            <tr><td>Firefox</td><td>Partial</td></tr>
+          </tbody>
+        </table>
+        <p>
+          <img src="/diagram.png" alt="Diagram of the WebGPU pipeline" /> The diagram shows how a
+          command encoder records work that is later submitted to the device queue. Recording and
+          submission are separate steps, which is what makes multithreaded rendering possible:
+          several workers can record command buffers at once and hand them to the queue together.
+        </p>
+        <h2>What to watch out for</h2>
+        <p>
+          Not every device supports WebGPU, and some expose smaller limits than others. Well-behaved
+          pages check for support, fall back gracefully, and ask for only the limits they need.
+          Privacy is another concern: detailed adapter information can be used for fingerprinting,
+          so some browsers deliberately hide it.
+        </p>
+      </article>
+    </main>
+    <aside>Related posts: 10 CSS tricks you didn't know</aside>
+    <footer>© 2026 Example Blog. All rights reserved. Privacy · Terms</footer>
+  </body>
+</html>

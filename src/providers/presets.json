@@ -1,0 +1,111 @@
+[
+  {
+    "id": "ollama",
+    "label": "Ollama",
+    "kind": "local",
+    "baseUrl": "http://localhost:11434/v1",
+    "needsKey": false,
+    "contextTokens": 4096,
+    "docsUrl": "https://docs.ollama.com",
+    "setupNote": "Install Ollama and download a model, for example: ollama pull qwen3. LocalPulse handles Ollama's browser-extension check for you."
+  },
+  {
+    "id": "lmstudio",
+    "label": "LM Studio",
+    "kind": "local",
+    "baseUrl": "http://localhost:1234/v1",
+    "needsKey": false,
+    "contextTokens": 4096,
+    "docsUrl": "https://lmstudio.ai/docs/developer/core/server",
+    "setupNote": "Load a model and start the local server in LM Studio's Developer tab."
+  },
+  {
+    "id": "llamacpp",
+    "label": "llama.cpp server",
+    "kind": "local",
+    "baseUrl": "http://127.0.0.1:8080/v1",
+    "needsKey": false,
+    "contextTokens": 4096,
+    "docsUrl": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md",
+    "setupNote": "Start llama-server with a model. Don't use --tools or --agent: they block browser extensions."
+  },
+  {
+    "id": "gemini",
+    "label": "Google Gemini",
+    "kind": "cloud",
+    "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+    "needsKey": true,
+    "contextTokens": 25000,
+    "keyUrl": "https://aistudio.google.com/apikey",
+    "termsUrl": "https://ai.google.dev/gemini-api/terms",
+    "dataNote": "Free tier: Google may use prompts and answers to improve its products, and human reviewers may read them. Google says not to send sensitive information.",
+    "modelHints": ["flash-lite", "flash"]
+  },
+  {
+    "id": "openrouter",
+    "label": "OpenRouter",
+    "kind": "cloud",
+    "baseUrl": "https://openrouter.ai/api/v1",
+    "needsKey": true,
+    "contextTokens": 16000,
+    "keyUrl": "https://openrouter.ai/keys",
+    "termsUrl": "https://openrouter.ai/terms",
+    "dataNote": "Where your data goes depends on the model's provider. OpenRouter's privacy settings can exclude providers that train on data.",
+    "modelHints": [":free$"]
+  },
+  {
+    "id": "groq",
+    "label": "Groq",
+    "kind": "cloud",
+    "baseUrl": "https://api.groq.com/openai/v1",
+    "needsKey": true,
+    "contextTokens": 6000,
+    "keyUrl": "https://console.groq.com/keys",
+    "termsUrl": "https://groq.com/terms-of-use",
+    "dataNote": "Groq doesn't retain inference data by default. The free plan's small tokens-per-minute limit suits short pages.",
+    "modelHints": ["gpt-oss-20b", "llama", "qwen"]
+  },
+  {
+    "id": "mistral",
+    "label": "Mistral",
+    "kind": "cloud",
+    "baseUrl": "https://api.mistral.ai/v1",
+    "needsKey": true,
+    "contextTokens": 16000,
+    "keyUrl": "https://console.mistral.ai/api-keys",
+    "termsUrl": "https://mistral.ai/terms",
+    "dataNote": "On the free plan, Mistral may use your data for training unless you opt out.",
+    "modelHints": ["mistral-small", "small"]
+  },
+  {
+    "id": "huggingface",
+    "label": "Hugging Face",
+    "kind": "cloud",
+    "baseUrl": "https://router.huggingface.co/v1",
+    "needsKey": true,
+    "contextTokens": 8000,
+    "keyUrl": "https://huggingface.co/settings/tokens",
+    "termsUrl": "https://huggingface.co/terms-of-service",
+    "dataNote": "Requests are routed to third-party inference providers, each with its own data terms."
+  },
+  {
+    "id": "openai",
+    "label": "OpenAI",
+    "kind": "cloud",
+    "baseUrl": "https://api.openai.com/v1",
+    "needsKey": true,
+    "contextTokens": 25000,
+    "keyUrl": "https://platform.openai.com/api-keys",
+    "termsUrl": "https://openai.com/policies/",
+    "modelHints": ["mini"]
+  },
+  {
+    "id": "custom",
+    "label": "Custom endpoint",
+    "kind": "cloud",
+    "baseUrl": "",
+    "needsKey": false,
+    "contextTokens": 8000,
+    "setupNote": "Any server that speaks the OpenAI Chat Completions API."
+  }
+]

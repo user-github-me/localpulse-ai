@@ -1,0 +1,20 @@
+name: Feature request
+description: Suggest something LocalPulse could do.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the task or the problem, not only the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could LocalPulse help?
+  - type: markdown
+    attributes:
+      value: |
+        New AI services, quick actions and translations are usually a JSON or YAML file. See
+        CONTRIBUTING.md if you'd like to add one yourself.

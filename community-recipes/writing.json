@@ -1,0 +1,14 @@
+[
+  {
+    "label": "Make it friendlier",
+    "prompt": "Rewrite this in a warmer, friendlier tone. Keep the meaning and the language. Reply with only the rewritten text.",
+    "input": "selection",
+    "mode": "transform"
+  },
+  {
+    "label": "Reply draft",
+    "prompt": "Draft a short, polite reply to this message in {{language}}. Keep it under 120 words.",
+    "input": "selection",
+    "mode": "reduce"
+  }
+]

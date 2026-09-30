@@ -1,0 +1,240 @@
+/* Classes come only from src/, so a build from the sources ZIP (for addons.mozilla.org reviewers)
+   produces exactly the same CSS as a build from the full repository. */
+@import 'tailwindcss' source('..');
+
+/* Dark mode follows data-theme on <html>, set from the user's setting or the system (lib/theme.ts). */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* Answers are set like reader-mode text, in a system serif. No remote fonts. */
+  --font-serif:
+    Charter, 'Bitstream Charter', 'Iowan Old Style', 'Sitka Text', Cambria, Georgia, serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+
+  --color-paper: #f5f7f6;
+  --color-surface: #ffffff;
+  --color-ink: #17201d;
+  --color-muted: #5b6863;
+  --color-line: #d9e0dd;
+  --color-local: #1c7a5a;
+  --color-local-soft: #e2f1ea;
+  /* Darker than it looks necessary: it must stay 4.5:1 on the pale amber band too. */
+  --color-cloud: #9a4a08;
+  --color-cloud-soft: #fbeadb;
+  --color-danger: #b3261e;
+  --color-danger-soft: #fbe7e5;
+}
+
+:root[data-theme='dark'] {
+  --color-paper: #121816;
+  --color-surface: #1a2220;
+  --color-ink: #e6ece9;
+  --color-muted: #9aa8a2;
+  --color-line: #2c3834;
+  --color-local: #5cc49a;
+  --color-local-soft: #183229;
+  --color-cloud: #f0a35e;
+  --color-cloud-soft: #3a2616;
+  --color-danger: #f2877f;
+  --color-danger-soft: #3b1d1a;
+  color-scheme: dark;
+}
+
+/* Base styles live in a layer so Tailwind utilities (e.g. outline-none) can override them. */
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html,
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-local);
+    outline-offset: 2px;
+  }
+
+  dialog::backdrop {
+    background: rgb(10 15 13 / 0.45);
+  }
+
+  dialog[open] {
+    animation: dialog-in 140ms ease-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    dialog[open] {
+      animation: none;
+    }
+
+    *,
+    ::before,
+    ::after {
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* The pulse lamp: the one moving thing, only while an answer is being written. */
+@keyframes lamp-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, currentColor 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, currentColor 0%, transparent);
+  }
+}
+
+@layer components {
+  .lamp {
+    width: 0.55rem;
+    height: 0.55rem;
+    border-radius: 9999px;
+    background: currentColor;
+    flex: none;
+  }
+
+  .lamp[data-active='true'] {
+    animation: lamp-pulse 1.4s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lamp[data-active='true'] {
+      animation: none;
+    }
+  }
+
+  /* Reader-style typography for answers. */
+  .answer {
+    font-family: var(--font-serif);
+    font-size: 0.97rem;
+    line-height: 1.62;
+    overflow-wrap: anywhere;
+  }
+
+  .answer > * + * {
+    margin-top: 0.7em;
+  }
+
+  .answer h1,
+  .answer h2,
+  .answer h3,
+  .answer h4 {
+    font-family: var(--font-sans);
+    font-weight: 650;
+    line-height: 1.3;
+    margin-top: 1.1em;
+  }
+
+  .answer h1 {
+    font-size: 1.15rem;
+  }
+
+  .answer h2 {
+    font-size: 1.05rem;
+  }
+
+  .answer h3,
+  .answer h4 {
+    font-size: 0.97rem;
+  }
+
+  .answer ul,
+  .answer ol {
+    padding-left: 1.3em;
+  }
+
+  .answer ul {
+    list-style: disc;
+  }
+
+  .answer ol {
+    list-style: decimal;
+  }
+
+  .answer li + li {
+    margin-top: 0.25em;
+  }
+
+  .answer li:has(> input[type='checkbox']) {
+    list-style: none;
+    margin-left: -1.3em;
+  }
+
+  .answer input[type='checkbox'] {
+    margin-right: 0.45em;
+    accent-color: var(--color-local);
+  }
+
+  .answer blockquote {
+    border-left: 3px solid var(--color-line);
+    padding-left: 0.8em;
+    color: var(--color-muted);
+  }
+
+  .answer a {
+    color: var(--color-local);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .answer code {
+    font-family: var(--font-mono);
+    font-size: 0.86em;
+    background: color-mix(in srgb, var(--color-line) 55%, transparent);
+    border-radius: 4px;
+    padding: 0.1em 0.3em;
+  }
+
+  .answer pre {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    background: var(--color-paper);
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    padding: 0.7em 0.8em;
+    overflow-x: auto;
+  }
+
+  .answer pre code {
+    background: none;
+    padding: 0;
+    font-size: inherit;
+  }
+
+  .answer table {
+    display: block;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-family: var(--font-sans);
+    font-size: 0.85rem;
+  }
+
+  .answer th,
+  .answer td {
+    border: 1px solid var(--color-line);
+    padding: 0.3em 0.5em;
+    text-align: left;
+  }
+
+  .answer hr {
+    border: 0;
+    border-top: 1px solid var(--color-line);
+  }
+}

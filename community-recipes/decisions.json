@@ -1,0 +1,14 @@
+[
+  {
+    "label": "Pros and cons",
+    "prompt": "List the main pros and cons as two short bullet lists. End with one sentence on who this suits best.",
+    "input": "page",
+    "mode": "reduce"
+  },
+  {
+    "label": "Fact check",
+    "prompt": "List the main factual claims. For each, say whether the page supports it with evidence, and quote the supporting sentence exactly. Mark claims without evidence.",
+    "input": "page",
+    "mode": "qa"
+  }
+]

@@ -1,0 +1,20 @@
+[
+  {
+    "label": "Quiz me",
+    "prompt": "Write 5 short quiz questions that test understanding of the main ideas, then list the answers separately at the end.",
+    "input": "page",
+    "mode": "reduce"
+  },
+  {
+    "label": "Explain like I'm 12",
+    "prompt": "Explain this so a curious 12-year-old understands it. Use short sentences and one everyday comparison.",
+    "input": "page",
+    "mode": "reduce"
+  },
+  {
+    "label": "Glossary",
+    "prompt": "List the technical terms used here with a one-line plain-language definition for each.",
+    "input": "page",
+    "mode": "reduce"
+  }
+]

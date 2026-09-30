@@ -1,0 +1,68 @@
+# Pushing a tag like v1.0.1 builds the store packages and creates a draft GitHub release with them.
+# Review the draft and publish it yourself.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+env:
+  COREPACK_ENABLE_DOWNLOAD_PROMPT: '0'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+
+      - name: Check that the tag matches the version in package.json
+        run: test "v$(node -p "require('./package.json').version")" = "$GITHUB_REF_NAME"
+
+      - run: pnpm compile
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm zip
+      - run: pnpm zip:firefox
+
+      - name: Check the packages and write checksums
+        working-directory: local/build
+        run: |
+          for zip in *-chrome.zip *-firefox.zip; do
+            unzip -Z1 "$zip" | grep -qx manifest.json || { echo "manifest.json is not at the root of $zip"; exit 1; }
+          done
+          sha256sum *.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Write the release notes from CHANGELOG.md
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v heading="## $version " '
+            /^## / { printing = index($0, heading) == 1; next }
+            printing
+          ' CHANGELOG.md > local/release-notes.md
+          grep -q . local/release-notes.md || { echo "CHANGELOG.md has no section for $version"; exit 1; }
+          previous=$(git describe --tags --abbrev=0 "$GITHUB_REF_NAME^" 2>/dev/null || true)
+          if [ -n "$previous" ]; then
+            printf '\n**Full changelog:** %s/%s/compare/%s...%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$previous" "$GITHUB_REF_NAME" >> local/release-notes.md
+          fi
+          cat local/release-notes.md
+
+      - name: Create a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          theme=$(grep -m1 . local/release-notes.md | sed 's/\.$//')
+          gh release create "$GITHUB_REF_NAME" --draft --verify-tag \
+            --title "$GITHUB_REF_NAME — $theme" \
+            --notes-file local/release-notes.md \
+            local/build/*.zip local/build/SHA256SUMS.txt
