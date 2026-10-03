@@ -1,4 +1,5 @@
 import { useEffect, useState, type DragEvent } from 'react';
+import { Mail } from 'lucide-react';
 import { applyTheme } from '@/lib/theme';
 import { ActionRow } from './components/ActionRow';
 import { Composer } from './components/Composer';
@@ -54,6 +55,19 @@ export function SidePanel() {
         }}
         onHistory={() => setFollowupsOpen(false)}
       />
+      <nav
+        className="flex border-b border-line bg-surface px-3 py-1.5"
+        aria-label={t('readTracking.tools')}
+      >
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-xs font-medium text-muted hover:bg-line/40 hover:text-ink"
+          onClick={() => setTrackingOpen(true)}
+        >
+          <Mail className="h-4 w-4" aria-hidden />
+          {t('readTracking.entry')}
+        </button>
+      </nav>
       {followupsOpen ? (
         <FollowupsView
           onClose={() => setFollowupsOpen(false)}

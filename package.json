@@ -1,7 +1,7 @@
 {
   "name": "localpulse-ai",
   "description": "Privacy-first, open-source browser copilot with on-device AI, local study tools, follow-ups and optional encrypted email read activity.",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "license": "MIT",

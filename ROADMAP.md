@@ -21,12 +21,13 @@ summaries and relevant-section retrieval; writing tools; checked quotes; and loc
 history. The privacy work is substantial: source provenance follows answers across turns,
 never-send rules are checked again when settings change, and cloud requests redact page details.
 
-The current **unreleased feature update** adds a temporary document workspace, 24 actions with a
+The current **v1.1.0 feature update (unreleased)** adds a temporary document workspace, 24 actions with a
 searchable library, searchable history with favorites, renaming and portable backups, interactive
 flashcards/Anki export, installed-voice read-aloud, a local follow-up board/calendar export and an
-optional encrypted email read tracker with a public GitHub/Vercel service. See
-[CHANGELOG.md](CHANGELOG.md) for the implementation and [README.md](README.md) for usage. Version
-1.0.1 remains the package version until the next release is prepared.
+optional encrypted email read tracker with first-run setup, a direct panel entry and a public GitHub/Vercel service. See
+[CHANGELOG.md](CHANGELOG.md) for the implementation and [README.md](README.md) for usage.
+Source builds now identify themselves as **1.1.0**. The published store release remains 1.0.1
+until a separate store update is submitted and approved.
 
 ## How the parts fit
 

@@ -111,6 +111,9 @@ test to `tests/unit/extractor.test.ts`.
 
 ## Pull requests
 
+Always work on a feature branch and open a pull request. Do not push directly to `main`. Merge
+only after the maintainer explicitly asks. The current feature release is v1.1.0.
+
 - Run `corepack pnpm format`, then `corepack pnpm compile && corepack pnpm lint && corepack pnpm test`,
   before pushing. CI also checks the formatting, runs both builds, lints the Firefox build with
   `web-ext lint` and runs the browser tests (`corepack pnpm test:e2e`).

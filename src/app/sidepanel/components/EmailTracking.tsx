@@ -1,12 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { browser } from '#imports';
+import { Copy, Plus, RefreshCw, ShieldCheck } from 'lucide-react';
 import { Button, Dialog, TextInput } from '@/components/ui';
-import { normalizeTrackerUrl, trackingPermissionPattern } from '@/core/email-tracking';
 import {
   collectReadActivity,
-  connectTracker,
   createReadTracker,
-  disconnectTracker,
   exportReadBackup,
   getTrackerUrl,
   importReadBackup,
@@ -16,36 +13,47 @@ import {
   type ReadTracker,
 } from '@/storage/email-tracker';
 import { downloadHistoryFile } from '@/storage/history-export';
+import { TrackerConnection, trackerErrorMessage } from '../../shared/TrackerConnection';
 import { t } from '../../shared/i18n';
 
 export function EmailTracking({ onClose }: { onClose: () => void }) {
-  const [base, setBase] = useState('');
   const [connected, setConnected] = useState('');
+  const [loading, setLoading] = useState(true);
   const [trackers, setTrackers] = useState<ReadTracker[]>([]);
   const [selected, setSelected] = useState<ReadTracker>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [password, setPassword] = useState('');
+  const [backupOpen, setBackupOpen] = useState(false);
   const [removing, setRemoving] = useState<ReadTracker>();
   const input = useRef<HTMLInputElement>(null);
+  const passwordInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     let active = true;
     void Promise.all([getTrackerUrl(), listReadTrackers()])
       .then(([url, list]) => {
         if (active) {
-          setBase(url);
           setConnected(url);
           setTrackers(list);
+          setSelected(list[0]);
         }
       })
-      .catch(() => {
-        if (active) setError(t('readTracking.failed'));
+      .catch((failure) => {
+        if (active) setError(trackerErrorMessage(failure));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
     };
   }, []);
+  async function refreshLocal() {
+    const list = await listReadTrackers();
+    setTrackers(list);
+    setSelected((current) => list.find((tracker) => tracker.id === current?.id) ?? list[0]);
+  }
   async function run(operation: () => Promise<void>) {
     setBusy(true);
     setError('');
@@ -53,277 +61,329 @@ export function EmailTracking({ onClose }: { onClose: () => void }) {
     try {
       await operation();
     } catch (failure) {
-      const code = failure instanceof Error ? failure.message : '';
-      setError(
-        t(
-          code === 'password'
-            ? 'readTracking.passwordError'
-            : code === 'backupExists'
-              ? 'readTracking.backupExists'
-              : code === 'limit'
-                ? 'readTracking.limit'
-                : code === 'unavailable'
-                  ? 'readTracking.unavailable'
-                  : 'readTracking.failed',
-        ),
-      );
+      setError(trackerErrorMessage(failure));
+      // A failed acknowledgement can follow a successful local save; show those saved reads.
+      await refreshLocal().catch(() => {});
     } finally {
       setBusy(false);
     }
   }
-  function connect() {
-    const url = normalizeTrackerUrl(base.trim());
-    if (!url) {
-      setError(t('tracking.invalidUrl'));
-      return;
-    }
-    const permission = browser.permissions.request({ origins: [trackingPermissionPattern(url)] });
-    void run(async () => {
-      if (!(await permission)) throw new Error('permission');
-      await connectTracker(url);
-      setConnected(url);
-      setBase(url);
-      setTrackers(await listReadTrackers());
-      setSelected(undefined);
-      setNotice(t('readTracking.connected'));
+  function openBackup() {
+    setBackupOpen(true);
+    requestAnimationFrame(() => {
+      passwordInput.current?.focus();
     });
   }
+  const locked = busy || loading;
   return (
     <Dialog open onClose={onClose} title={t('readTracking.title')}>
       <div
-        className="max-h-[75vh] space-y-4 overflow-y-auto text-[0.82rem]"
+        className="max-h-[75vh] space-y-4 overflow-y-auto text-sm"
         tabIndex={0}
         aria-label={t('readTracking.title')}
       >
-        <p className="text-muted">{t('readTracking.note')}</p>
-        <p className="rounded-lg border border-line bg-paper p-3 text-muted">
-          {t('readTracking.privacy')}
-        </p>
-        <label className="block">
-          {t('tracking.serverUrl')}
-          <TextInput
-            className="mt-1"
-            type="url"
-            value={base}
-            maxLength={2048}
-            disabled={busy}
-            onChange={(event) => setBase(event.target.value)}
-            placeholder="https://localpulse-email-tracker.vercel.app"
-          />
-        </label>
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" disabled={busy} onClick={connect}>
-            {t('tracking.connect')}
-          </Button>
-          {connected && (
-            <Button
-              size="sm"
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  await disconnectTracker();
-                  setConnected('');
-                  setTrackers([]);
-                  setSelected(undefined);
-                })
-              }
-            >
-              {t('tracking.disconnect')}
-            </Button>
-          )}
-        </div>
-        {connected && (
-          <>
-            <a
-              className="block break-all text-local underline"
-              href={`${connected}/transparency`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {t('readTracking.transparency')}
-            </a>
-            <Button
-              size="sm"
-              disabled={busy}
-              onClick={() =>
-                void run(async () => {
-                  const tracker = await createReadTracker();
-                  setSelected(tracker);
-                  setTrackers(await listReadTrackers());
-                  setNotice(t('readTracking.created'));
-                })
-              }
-            >
-              {t('readTracking.create')}
-            </Button>
-            {selected && (
-              <section
-                className="space-y-2 rounded-lg border border-line p-3"
-                aria-label={t('readTracking.snippet')}
-              >
-                <h3 className="font-semibold">
-                  {t('readTracking.image')} {selected.id.slice(0, 8)}
-                </h3>
-                <p className="text-muted">{t('readTracking.paste')}</p>
-                <Button
-                  size="sm"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      if (!navigator.clipboard.write || typeof ClipboardItem === 'undefined')
-                        throw new Error('clipboard');
-                      await navigator.clipboard.write([
-                        new ClipboardItem({
-                          'text/html': new Blob([readTrackerHtml(selected)], { type: 'text/html' }),
-                          'text/plain': new Blob([''], { type: 'text/plain' }),
-                        }),
-                      ]);
-                      setNotice(t('readTracking.copied'));
-                    })
-                  }
-                >
-                  {t('tracking.copyRich')}
-                </Button>{' '}
-                <Button
-                  size="sm"
-                  disabled={busy}
-                  onClick={() =>
-                    void run(async () => {
-                      await navigator.clipboard.writeText(readTrackerHtml(selected));
-                      setNotice(t('tracking.htmlCopied'));
-                    })
-                  }
-                >
-                  {t('tracking.copyHtml')}
-                </Button>
-                <details>
-                  <summary>{t('tracking.viewHtml')}</summary>
-                  <pre className="whitespace-pre-wrap break-all text-xs">
-                    {readTrackerHtml(selected)}
-                  </pre>
-                </details>
-              </section>
-            )}
-            <section
-              className="space-y-2 border-t border-line pt-3"
-              aria-label={t('readTracking.results')}
-            >
-              <Button
-                size="sm"
-                disabled={busy}
-                onClick={() =>
-                  void run(async () => {
-                    const next = await collectReadActivity();
-                    setTrackers([...next]);
-                    setSelected((current) => next.find((tracker) => tracker.id === current?.id));
-                    setNotice(t('readTracking.collected'));
-                  })
-                }
-              >
-                {t('readTracking.collect')}
-              </Button>
-              <p className="text-muted">{t('readTracking.reliability')}</p>
-              <ul className="space-y-3">
-                {trackers.map((tracker) => (
-                  <li className="rounded-lg border border-line p-3" key={tracker.id}>
-                    <button
-                      type="button"
-                      className="font-medium text-local"
-                      onClick={() => setSelected(tracker)}
-                    >
-                      {t('readTracking.image')} {tracker.id.slice(0, 8)}
-                    </button>
-                    <p>{t('readTracking.count', { count: tracker.reads.length })}</p>
-                    <details>
-                      <summary>{t('readTracking.times')}</summary>
-                      <ul className="max-h-40 overflow-y-auto">
-                        {tracker.reads
-                          .slice(-100)
-                          .reverse()
-                          .map((read) => (
-                            <li key={read.id}>{new Date(read.at).toLocaleString()}</li>
-                          ))}
-                      </ul>
-                    </details>
-                    <Button size="sm" disabled={busy} onClick={() => setRemoving(tracker)}>
-                      {t('readTracking.remove')}
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </>
-        )}
-        <section
-          className="space-y-2 border-t border-line pt-3"
-          aria-label={t('readTracking.backup')}
-        >
-          <h3 className="font-semibold">{t('readTracking.backup')}</h3>
-          <p className="text-muted">{t('readTracking.backupNote')}</p>
-          <label className="block">
-            {t('readTracking.password')}
-            <TextInput
-              className="mt-1"
-              type="password"
-              autoComplete="new-password"
-              value={password}
-              maxLength={1000}
-              onChange={(event) => setPassword(event.target.value)}
-              disabled={busy}
-            />
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              disabled={busy || password.length < 12}
-              onClick={() =>
-                void run(async () => {
-                  const content = await exportReadBackup(password);
-                  downloadHistoryFile(content, 'localpulse-read-backup.json', 'application/json');
-                  setPassword('');
-                  setNotice(t('readTracking.backedUp'));
-                })
-              }
-            >
-              {t('readTracking.export')}
-            </Button>
-            <Button
-              size="sm"
-              disabled={busy || password.length < 12}
-              onClick={() => input.current?.click()}
-            >
-              {t('readTracking.import')}
-            </Button>
-          </div>
-          <input
-            ref={input}
-            type="file"
-            accept="application/json,.json"
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              event.target.value = '';
-              if (!file) return;
-              void run(async () => {
-                if (file.size > 7000000) throw new Error('backup');
-                await importReadBackup(await file.text(), password);
-                setTrackers(await listReadTrackers());
-                setPassword('');
-                setNotice(t('readTracking.imported'));
-              });
-            }}
-          />
-        </section>
+        <p className="text-muted">{t('readTracking.intro')}</p>
         {error && (
-          <p role="alert" className="text-danger">
+          <p
+            role="alert"
+            className="rounded-lg border border-danger/30 bg-danger-soft p-3 text-danger"
+          >
             {error}
           </p>
         )}
         {notice && (
-          <p role="status" className="text-muted">
+          <p role="status" className="rounded-lg border border-line bg-paper p-3 text-local">
             {notice}
           </p>
         )}
+        {connected ? (
+          <>
+            <div className="space-y-2 rounded-lg bg-paper px-3 py-2">
+              <span className="flex items-center gap-2 text-xs text-local">
+                <ShieldCheck className="h-4 w-4 flex-none" aria-hidden />
+                {t('readTracking.ready')}
+              </span>
+              <details className="text-xs">
+                <summary className="cursor-pointer text-muted">
+                  {t('readTracking.serviceSettings')}
+                </summary>
+                <div className="mt-3">
+                  <TrackerConnection
+                    connected={connected}
+                    disabled={locked}
+                    onConnected={async (url) => {
+                      setConnected(url);
+                      await refreshLocal();
+                    }}
+                    onDisconnected={() => {
+                      setConnected('');
+                      setTrackers([]);
+                      setSelected(undefined);
+                    }}
+                  />
+                </div>
+              </details>
+            </div>
+            <section className="space-y-3" aria-label={t('readTracking.createStep')}>
+              <h3 className="font-semibold">{t('readTracking.createStep')}</h3>
+              <p className="text-xs text-muted">{t('readTracking.createHelp')}</p>
+              <Button
+                variant="primary"
+                className="w-full"
+                wrap
+                disabled={locked}
+                onClick={() =>
+                  void run(async () => {
+                    const tracker = await createReadTracker();
+                    setTrackers(await listReadTrackers());
+                    setSelected(tracker);
+                    setNotice(t('readTracking.created'));
+                  })
+                }
+              >
+                <Plus className="h-4 w-4 flex-none" aria-hidden />
+                {t('readTracking.create')}
+              </Button>
+              {selected && (
+                <section
+                  className="space-y-3 rounded-xl border border-line bg-paper p-3"
+                  aria-label={t('readTracking.snippet')}
+                >
+                  <p className="font-medium">
+                    {t('readTracking.imageName', { number: selected.id.slice(0, 8) })}
+                  </p>
+                  <p className="text-xs text-muted">{t('readTracking.paste')}</p>
+                  <Button
+                    className="w-full"
+                    wrap
+                    disabled={locked}
+                    onClick={() =>
+                      void run(async () => {
+                        if (!navigator.clipboard.write || typeof ClipboardItem === 'undefined')
+                          throw new Error('clipboard');
+                        await navigator.clipboard.write([
+                          new ClipboardItem({
+                            'text/html': new Blob([readTrackerHtml(selected)], {
+                              type: 'text/html',
+                            }),
+                            'text/plain': new Blob([''], { type: 'text/plain' }),
+                          }),
+                        ]);
+                        setNotice(t('readTracking.copied'));
+                      })
+                    }
+                  >
+                    <Copy className="h-4 w-4 flex-none" aria-hidden />
+                    {t('tracking.copyRich')}
+                  </Button>
+                  <details className="text-xs">
+                    <summary className="cursor-pointer text-muted">
+                      {t('readTracking.htmlOptions')}
+                    </summary>
+                    <Button
+                      size="sm"
+                      className="mt-2"
+                      disabled={locked}
+                      onClick={() =>
+                        void run(async () => {
+                          await navigator.clipboard.writeText(readTrackerHtml(selected));
+                          setNotice(t('tracking.htmlCopied'));
+                        })
+                      }
+                    >
+                      {t('tracking.copyHtml')}
+                    </Button>
+                    <pre className="mt-2 whitespace-pre-wrap break-all">
+                      {readTrackerHtml(selected)}
+                    </pre>
+                  </details>
+                  <button
+                    type="button"
+                    disabled={locked}
+                    className="text-xs text-local underline"
+                    onClick={openBackup}
+                  >
+                    {t('readTracking.backupReminder')}
+                  </button>
+                </section>
+              )}
+            </section>
+            <section
+              className="space-y-3 border-t border-line pt-4"
+              aria-label={t('readTracking.results')}
+            >
+              <h3 className="font-semibold">{t('readTracking.results')}</h3>
+              <Button
+                className="w-full"
+                wrap
+                disabled={locked || !trackers.length}
+                onClick={() =>
+                  void run(async () => {
+                    await collectReadActivity();
+                    await refreshLocal();
+                    setNotice(t('readTracking.collected'));
+                  })
+                }
+              >
+                <RefreshCw
+                  className={`h-4 w-4 flex-none ${busy ? 'animate-spin' : ''}`}
+                  aria-hidden
+                />
+                {busy ? t('readTracking.checking') : t('readTracking.collect')}
+              </Button>
+              <p className="text-xs text-muted">{t('readTracking.savedThenDeleted')}</p>
+              {!trackers.length && (
+                <p className="rounded-lg border border-dashed border-line p-3 text-xs text-muted">
+                  {t('readTracking.empty')}
+                </p>
+              )}
+              <ul className="space-y-2">
+                {trackers.map((tracker) => (
+                  <li className="space-y-2 rounded-xl border border-line p-3" key={tracker.id}>
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <button
+                        type="button"
+                        className="font-medium text-local underline"
+                        onClick={() => setSelected(tracker)}
+                      >
+                        {t('readTracking.imageName', { number: tracker.id.slice(0, 8) })}
+                      </button>
+                      <span className="font-semibold">
+                        {t('readTracking.requests', tracker.reads.length, [
+                          tracker.reads.length.toLocaleString(),
+                        ])}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted">
+                      {tracker.reads.length
+                        ? t('readTracking.lastActivity', {
+                            time: new Date(tracker.reads.at(-1)!.at).toLocaleString(),
+                          })
+                        : t('readTracking.noActivity')}
+                    </p>
+                    {tracker.reads.length > 0 && (
+                      <details className="text-xs">
+                        <summary className="cursor-pointer text-muted">
+                          {t('readTracking.times')}
+                        </summary>
+                        <ul className="mt-2 max-h-40 overflow-y-auto">
+                          {tracker.reads
+                            .slice(-100)
+                            .reverse()
+                            .map((read) => (
+                              <li key={read.id}>{new Date(read.at).toLocaleString()}</li>
+                            ))}
+                        </ul>
+                      </details>
+                    )}
+                    <button
+                      type="button"
+                      disabled={locked}
+                      className="text-xs text-muted underline"
+                      onClick={() => setRemoving(tracker)}
+                    >
+                      {t('readTracking.remove')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-xs text-muted">{t('readTracking.reliabilityShort')}</p>
+            </section>
+          </>
+        ) : (
+          <section className="space-y-3" aria-label={t('readTracking.connectStep')}>
+            <h3 className="font-semibold">{t('readTracking.connectStep')}</h3>
+            <TrackerConnection
+              connected=""
+              disabled={locked}
+              onConnected={async (url) => {
+                setConnected(url);
+                await refreshLocal();
+                setNotice(t('readTracking.connectionComplete'));
+              }}
+            />
+          </section>
+        )}
+        <details
+          open={backupOpen}
+          onToggle={(event) => setBackupOpen(event.currentTarget.open)}
+          className="border-t border-line pt-3"
+        >
+          <summary className="cursor-pointer font-medium">{t('readTracking.backup')}</summary>
+          <section className="mt-3 space-y-3" aria-label={t('readTracking.backup')}>
+            <p className="text-xs text-muted">{t('readTracking.backupSimple')}</p>
+            <label className="block text-xs">
+              {t('readTracking.password')}
+              <TextInput
+                ref={passwordInput}
+                className="mt-1"
+                type="password"
+                autoComplete="new-password"
+                value={password}
+                maxLength={1000}
+                disabled={locked}
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                wrap
+                disabled={locked || password.length < 12}
+                onClick={() =>
+                  void run(async () => {
+                    downloadHistoryFile(
+                      await exportReadBackup(password),
+                      'localpulse-read-backup.json',
+                      'application/json',
+                    );
+                    setPassword('');
+                    setNotice(t('readTracking.backedUp'));
+                  })
+                }
+              >
+                {t('readTracking.export')}
+              </Button>
+              <Button
+                size="sm"
+                wrap
+                disabled={locked || password.length < 12}
+                onClick={() => input.current?.click()}
+              >
+                {t('readTracking.import')}
+              </Button>
+            </div>
+            <input
+              ref={input}
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = '';
+                if (!file) return;
+                void run(async () => {
+                  if (file.size > 7000000) throw new Error('backup');
+                  await importReadBackup(await file.text(), password);
+                  await refreshLocal();
+                  setPassword('');
+                  setNotice(t('readTracking.imported'));
+                });
+              }}
+            />
+          </section>
+        </details>
+        <details className="border-t border-line pt-3 text-xs">
+          <summary className="cursor-pointer text-muted">
+            {t('readTracking.privacyDetails')}
+          </summary>
+          <div className="mt-3 space-y-3 text-muted">
+            <p>{t('readTracking.note')}</p>
+            <p>{t('readTracking.privacy')}</p>
+            <p>{t('readTracking.reliability')}</p>
+            <p>{t('readTracking.hostingNote')}</p>
+          </div>
+        </details>
         <Button size="sm" className="w-full" onClick={onClose}>
           {t('common.close')}
         </Button>
@@ -347,8 +407,7 @@ export function EmailTracking({ onClose }: { onClose: () => void }) {
               if (tracker)
                 void run(async () => {
                   await removeReadTracker(tracker.id);
-                  setTrackers(await listReadTrackers());
-                  setSelected((current) => (current?.id === tracker.id ? undefined : current));
+                  await refreshLocal();
                   setRemoving(undefined);
                 });
             }}

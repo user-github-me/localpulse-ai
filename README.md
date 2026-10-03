@@ -100,8 +100,8 @@ Chromium 138 or newer, or Firefox 140 or newer.
 
 Chrome users can install from the
 [Chrome Web Store](https://chromewebstore.google.com/detail/obbcngemlmnpajcpdjknfccfhhnhldme).
-The store version is the published release; unreleased features described here require a source
-build until the next update is published.
+The store version is the published release. The v1.1.0 update described here is currently a source
+build for testing until the next store update is published.
 
 1. Download `localpulse-ai-<version>-chrome.zip` (for Firefox, `localpulse-ai-<version>-firefox.zip`)
    from the [Releases page](https://github.com/user-github-me/localpulse-ai/releases) and unzip it.
@@ -187,14 +187,20 @@ file with alarms. Import it into your calendar app to receive reminders. LocalPu
 dates while the board is open and does not deliver desktop notifications. Exported calendar
 events are copies: completing or editing a task here does not update an earlier calendar import.
 
-For email read activity, open **Image activity tracking** from Follow-ups. Choose the public
-service or follow the [open-source deployment instructions](tools/email-tracker/README.md), then
-connect its HTTPS URL. Review its linked public source and data policy. Create a private tracking
-image and **export an encrypted backup before sending it**. Copy the image into a rich-text email
+The first-run welcome flow offers optional email tracking after AI setup. Choose **Enable email
+tracking** to connect the free public service, or **Skip for now**. Nothing contacts the tracking
+service before you opt in, and images are never inserted automatically. Existing users can open
+**Settings → About → Show the welcome guide again** to revisit setup.
+
+For email read activity, click **Email tracking** below the provider bar. The free public service is
+already selected: click **Enable email tracking**, then **Create tracking image**. Expand **Use your
+own server** for a custom deployment; see the [deployment instructions](tools/email-tracker/README.md).
+Review the linked public source and data policy. **Back up this image and your keys before sending**
+opens password-encrypted backup controls. Copy the image into a rich-text email
 composer and test with your own inbox: mail clients may remove pasted images. The extension never
 inserts tracking automatically or sends mail.
 
-**Collect and delete server events** saves decrypted timestamps and counts in your browser, then
+**Check reads** saves decrypted timestamps and counts in your browser, then
 sends a signed acknowledgement that deletes exactly those events. Repeat to collect further
 batches. Tracking images and waiting events have no expiry; provider quotas and the 1,000-event
 queue limit can still cause missed activity. Apple Mail, Gmail proxies, cached images and security

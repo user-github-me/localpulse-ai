@@ -26,3 +26,4 @@ export function trackingPermissionPattern(base: string): string {
   const url = new URL(base);
   return `${url.protocol}//${url.hostname}/*`;
 }
+export const DEFAULT_TRACKER_URL = 'https://localpulse-email-tracker.vercel.app';

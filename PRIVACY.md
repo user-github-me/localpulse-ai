@@ -82,6 +82,8 @@ voices the browser reports as installed locally, with no remote voice fallback.
 
 ## Optional email read activity
 
+The first-run welcome flow offers tracking with an explicit enable button and Skip for now.
+No tracking requests happen merely by installing, viewing setup or opening the tracking panel.
 Tracking is off until you explicitly connect a server. The optional service is open source under
 MIT and can run on Vercel or your own host. Read its [public source and deployment policy](tools/email-tracker/README.md).
 The server's `/` and `/transparency` disclose the implementation, GitHub deployment commit, queue
@@ -109,7 +111,7 @@ key can decrypt queued payloads. Deletion requires a signature from the user's p
 key, which is also never sent. Sharing an image URL lets others generate activity and inspect its
 ciphertext, so it cannot prove authenticity of a human read.
 
-**Collect and delete server events** fetches at most 100 events per image per collection. The
+**Check reads** fetches at most 100 events per image per collection. The
 extension decrypts and saves them locally before signing acknowledgement of those exact event IDs.
 The server then deletes those values, removing empty queues. Failed acknowledgements retry on
 collection without counting the same event twice; newly arriving events are retained. Deletion
