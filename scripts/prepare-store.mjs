@@ -104,13 +104,13 @@ for (const [input, name] of [
     .png({ compressionLevel: 9 })
     .toFile(join(root, 'docs/screenshots', `${name}.png`));
 const submission = await readFile(join(root, 'docs/store/v1.1.0.md'), 'utf8');
-await writeFile(
-  join(output, 'store-description.txt'),
-  submission
-    .split('## Suggested listing description\n\n')[1]
-    .split('\n## Permission explanations')[0]
-    .trim() + '\n',
-);
+const listing = await readFile(join(root, 'docs/store/store-listing-v1.1.0.md'), 'utf8');
+const description = listing.match(
+  /<!-- DESCRIPTION START -->\n([\s\S]*?)\n<!-- DESCRIPTION END -->/,
+)?.[1];
+if (!description?.trim() || description.length > 16000)
+  throw new Error('Store description must contain between 1 and 16,000 characters.');
+await writeFile(join(output, 'store-description.txt'), description.trim() + '\n');
 await writeFile(
   join(output, 'reviewer-instructions.txt'),
   submission
