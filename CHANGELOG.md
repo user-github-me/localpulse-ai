@@ -6,6 +6,9 @@ All notable changes to LocalPulse AI. The format follows
 
 ## 1.1.0 — Unreleased
 
+- Opt-in saved research collections with local full-text search, rename/delete and validated JSON backups; fresh cloud consent on reopening/import.
+- Navigable verified source excerpts with surrounding text and extracted PDF page numbers.
+
 The next feature release expands LocalPulse into a reading, study and follow-up workspace. No new
 extension permissions or dependencies. Email read activity is optional and uses a separately
 connected public open-source service, or the user's own deployment.

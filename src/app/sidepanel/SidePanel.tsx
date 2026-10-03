@@ -1,5 +1,5 @@
 import { useEffect, useState, type DragEvent } from 'react';
-import { Mail } from 'lucide-react';
+import { Mail, Library } from 'lucide-react';
 import { applyTheme } from '@/lib/theme';
 import { ActionRow } from './components/ActionRow';
 import { Composer } from './components/Composer';
@@ -8,6 +8,7 @@ import { ContextCard } from './components/ContextCard';
 import { Conversation } from './components/Conversation';
 import { HistoryView } from './components/HistoryView';
 import { FollowupsView } from './components/FollowupsView';
+import { ResearchLibrary } from './components/ResearchLibrary';
 import { EmailTracking } from './components/EmailTracking';
 import { StatusStrip } from './components/StatusStrip';
 import { t } from '../shared/i18n';
@@ -23,6 +24,7 @@ export function SidePanel() {
   const openFiles = usePanel((state) => state.openFiles);
   const [dragging, setDragging] = useState(false);
   const [followupsOpen, setFollowupsOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
   const [trackingOpen, setTrackingOpen] = useState(false);
 
   useEffect(() => init(), [init]);
@@ -56,7 +58,7 @@ export function SidePanel() {
         onHistory={() => setFollowupsOpen(false)}
       />
       <nav
-        className="flex border-b border-line bg-surface px-3 py-1.5"
+        className="flex flex-wrap border-b border-line bg-surface px-3 py-1.5"
         aria-label={t('readTracking.tools')}
       >
         <button
@@ -66,6 +68,14 @@ export function SidePanel() {
         >
           <Mail className="h-4 w-4" aria-hidden />
           {t('readTracking.entry')}
+        </button>
+        <button
+          type="button"
+          className="inline-flex items-center gap-2 rounded-lg px-2 py-1 text-xs font-medium text-muted hover:bg-line/40 hover:text-ink"
+          onClick={() => setLibraryOpen(true)}
+        >
+          <Library className="h-4 w-4" aria-hidden />
+          {t('library.title')}
         </button>
       </nav>
       {followupsOpen ? (
@@ -84,6 +94,7 @@ export function SidePanel() {
         </>
       )}
       <ConsentDialog />
+      {libraryOpen && <ResearchLibrary onClose={() => setLibraryOpen(false)} />}
       {trackingOpen && <EmailTracking onClose={() => setTrackingOpen(false)} />}
       {dragging && (
         <div className="pointer-events-none absolute inset-2 z-40 grid place-items-center rounded-[14px] border-2 border-dashed border-local bg-paper/90">

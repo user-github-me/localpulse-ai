@@ -54,6 +54,7 @@ The extension stores these items only in your browser on this computer:
 - **Chat history.** Your questions and the answers, with the title and address of the page each
   was about, but not the page text. Favorites and names you choose also stay here. History searches
   run locally. You can turn history off and delete it in Settings or History.
+- **Research library.** Complete text, titles and addresses of sources you explicitly save as named collections. Searches run locally. Delete collections separately from chat history. Library JSON backups contain full source content; keep them private. Reopening and importing collections requires fresh cloud consent and preserves original site restrictions. No pages are automatically saved.
 - **Downloaded in-browser models.** The built-in model is managed by your browser.
 - **Follow-ups.** Titles you review, optional web-page addresses, due dates and completion status.
   This independent local list stays available when chat history is disabled. No email bodies or

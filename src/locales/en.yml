@@ -734,3 +734,35 @@ readTracking:
   limit: This browser holds up to 100 images per server and 20,000 read times per image. Export your results before removing old images.
   unavailable: This server’s encrypted event queue is not configured yet. View its public status or connect another deployment.
   failed: Couldn't complete the operation. Check the server, permissions or backup password. Failed event acknowledgement is retried before collecting new events.
+
+library:
+  title: Research library
+  intro: Save chosen workspace sources as named collections on this device. Nothing is saved until you choose Save. Opening a collection replaces your temporary workspace.
+  name: Collection name
+  save: Save chosen sources
+  selection: '{count} chosen sources'
+  search: Search names and source text
+  collections: Saved collections
+  open: Open collection
+  rename: Rename
+  exportOne: Export collection
+  delete: Delete
+  deleteNote: Delete this collection from this device? Downloaded backups remain until you delete them separately.
+  confirmDelete: Delete collection
+  empty: Add files or capture pages in Document workspace, then save your first collection here.
+  saved: Collection saved on this device.
+  export: Export library
+  import: Import library
+  imported: Collections imported as separate copies.
+  backupNote: JSON exports contain complete source text, titles and addresses. Keep them private. Imported and reopened collections require fresh consent for cloud AI. Up to 50 collections and 20 million text characters can be saved. Deleting chat history does not delete this library.
+  invalidName: Enter a collection name with 1–120 characters.
+  invalidBackup: This is not a valid LocalPulse research library backup.
+  limit: This library holds up to 50 collections and 20 million characters. Each collection allows 12 sources and 2 million characters. Backup files must be under 25 MB.
+  failed: Couldn't update the library. Try again after the current action finishes.
+
+citations:
+  open: Open source excerpt
+  title: Verified source excerpt
+  page: 'PDF page {page}'
+  source: Open original source
+  note: This excerpt matches extracted source text. Text matching does not verify the answer’s overall truth. Repeated wording opens its first match. Local PDF excerpts show extracted page text.

@@ -278,3 +278,21 @@ See [ROADMAP.md](ROADMAP.md) for the project's current stage, design direction a
 ## License
 
 [MIT](LICENSE)
+
+## Saved research and source excerpts (v1.1.0)
+
+Use **Document workspace** to choose files and capture pages. Open **Research library**, name your
+collection and choose **Save chosen sources**. Saved text stays in this browser until you delete
+the collection. Search names and full source text locally, reopen a collection as your workspace,
+rename it, or export/import JSON. Backups contain full text and source addresses: keep them private.
+Reopened/imported sources require fresh cloud consent and retain original never-send site rules.
+
+Expand an answer's **Quote checked** control and choose **Open source excerpt**. The marked text
+and surrounding context come from the actual source; PDF page numbers come from extracted page
+headings. A source link opens a remote PDF at that page. For local files the excerpt remains local.
+Repeated wording opens its first match. Matching a quote does not verify the entire answer.
+
+These features track public issues [#2](https://github.com/user-github-me/localpulse-ai/issues/2) and
+[#3](https://github.com/user-github-me/localpulse-ai/issues/3). The remaining v1.1 feature proposals
+are [#4–#10](https://github.com/user-github-me/localpulse-ai/issues); each describes acceptance
+criteria, privacy boundaries and contributor starting points.

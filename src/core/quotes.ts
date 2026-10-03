@@ -10,6 +10,8 @@ export interface CheckedQuote {
   found: boolean;
   /** For a quote that was found: the page's own wording of it, to look it up in the page. */
   onPage?: string;
+  /** Verified local context; never taken from model-generated source labels. */
+  location?: { before: string; match: string; after: string; page?: number; heading?: string };
 }
 
 /** Quote marks, Markdown emphasis and invisible characters: they never decide a match. */
@@ -276,7 +278,7 @@ function asShown(markdown: string): string {
  * as an English translation of a Chinese email, can't be looked up in it, so it isn't checked
  * rather than wrongly flagged as missing.
  */
-export function checkQuotes(answer: string, pageText: string): CheckedQuote[] {
+export function checkQuotes(answer: string, pageText: string, locate = false): CheckedQuote[] {
   const quotes = extractQuotes(answer);
   if (!quotes.length) return [];
   const scripts = scriptCounts(pageText);
@@ -294,6 +296,20 @@ export function checkQuotes(answer: string, pageText: string): CheckedQuote[] {
     const start = page.starts[index] ?? 0;
     const end = page.ends[index + needle.length - 1] ?? pageText.length;
     const onPage = asShown(pageText.slice(start, end));
-    return onPage && onPage !== text ? { text, found: true, onPage } : { text, found: true };
+    const result: CheckedQuote =
+      onPage && onPage !== text ? { text, found: true, onPage } : { text, found: true };
+    if (locate) {
+      const headings = [...pageText.slice(0, start).matchAll(/^#{1,6} (.+)$/gm)];
+      const pageHeadings = headings.filter((h) => /^Page [1-9][0-9]*$/.test(h[1] ?? ''));
+      const pageNumber = pageHeadings.at(-1)?.[1]?.slice(5);
+      result.location = {
+        before: pageText.slice(Math.max(0, start - 240), start),
+        match: pageText.slice(start, end),
+        after: pageText.slice(end, end + 240),
+        ...(pageNumber && { page: Number(pageNumber) }),
+        ...(headings.at(-1)?.[1] && { heading: headings.at(-1)?.[1] }),
+      };
+    }
+    return result;
   });
 }
