@@ -190,7 +190,7 @@ events are copies: completing or editing a task here does not update an earlier 
 The first-run welcome flow offers optional email tracking after AI setup. Choose **Enable email
 tracking** to connect the free public service, or **Skip for now**. Nothing contacts the tracking
 service before you opt in, and images are never inserted automatically. Existing users can open
-**Settings → About → Show the welcome page again** to revisit setup.
+**Settings → About → Show the welcome guide again** to revisit setup.
 
 For email read activity, click **Email tracking** below the provider bar. The free public service is
 already selected: click **Enable email tracking**, then **Create tracking image**. Expand **Use your
