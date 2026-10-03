@@ -41,8 +41,12 @@ test('private read tracking encrypts timestamps, saves results before deletion, 
       .fill('http://127.0.0.1:47879');
     await tracker.getByRole('button', { name: 'Enable email tracking', exact: true }).click();
     await expect(
-      tracker.getByText('Connected. Create an image for your first email below.', { exact: true }),
+      tracker.getByText(
+        'Ready. Gmail and Outlook drafts will get tracking automatically; your first image is prepared.',
+        { exact: true },
+      ),
     ).toBeVisible();
+    await tracker.getByText('Advanced · manual images and private names', { exact: true }).click();
     await tracker.getByRole('button', { name: 'Create tracking image' }).click();
     await expect(tracker.getByRole('region', { name: 'Private tracking image' })).toBeVisible();
     await mkdir('local/screens', { recursive: true });
@@ -171,7 +175,7 @@ for (const theme of ['light', 'dark'] as const) {
   });
 }
 
-test('first-run enable uses the default URL, retries after a connection failure, and persists setup without creating images', async ({
+test('first-run enable retries and prepares the first automatic image', async ({
   context,
   extensionId,
   article,
@@ -181,6 +185,16 @@ test('first-run enable uses the default URL, retries after a connection failure,
   const requests: { url: string; body: string | null }[] = [];
   await context.route('https://localpulse-email-tracker.vercel.app/**', (route) => {
     requests.push({ url: route.request().url(), body: route.request().postData() });
+    if (!fail && route.request().url().endsWith('/api/readers')) {
+      const token = 'abcdefghijklmnopqrstuvwxyz123456';
+      return route.fulfill({
+        json: {
+          mailbox: '00000000-0000-4000-8000-000000000001',
+          token,
+          pixelUrl: `https://localpulse-email-tracker.vercel.app/p/${token}.gif`,
+        },
+      });
+    }
     return route.fulfill(
       fail
         ? { status: 503, json: { error: 'Temporary failure' } }
@@ -201,10 +215,12 @@ test('first-run enable uses the default URL, retries after a connection failure,
   const panel = await openPanel(context, extensionId, article);
   await panel.getByRole('button', { name: 'Email tracking', exact: true }).click();
   const tracker = panel.getByRole('dialog', { name: 'Email tracking' });
-  await expect(tracker.getByRole('button', { name: 'Create tracking image' })).toBeVisible();
-  expect(requests).toHaveLength(2);
+  await expect(tracker.getByRole('button', { name: 'Turn off automatic tracking' })).toBeVisible();
+  expect(requests).toHaveLength(3);
   expect(
-    requests.every((request) => request.url.endsWith('/api/status') && request.body === null),
+    requests
+      .filter((request) => request.url.endsWith('/api/status'))
+      .every((request) => request.body === null),
   ).toBe(true);
   const options = await context.newPage();
   await options.goto(`chrome-extension://${extensionId}/options.html`);

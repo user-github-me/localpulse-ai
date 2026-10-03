@@ -7,6 +7,9 @@ import {
   normalizeTrackerUrl,
   trackingPermissionPattern,
 } from '@/core/email-tracking';
+import { WEBMAIL_ORIGINS } from '@/core/webmail';
+import { enableAutomaticTracking, syncTrackingIntegration } from '@/core/tracking-integration';
+import { setTrackingOptions } from '@/storage/tracking-options';
 import { connectTracker, disconnectTracker } from '@/storage/email-tracker';
 import { t } from './i18n';
 
@@ -37,8 +40,10 @@ export function TrackerConnection({
   onConnected,
   onDisconnected,
   onBusyChange,
+  automatic = false,
 }: {
   connected: string;
+  automatic?: boolean;
   disabled?: boolean;
   onConnected: (base: string) => Promise<void> | void;
   onDisconnected?: () => Promise<void> | void;
@@ -59,7 +64,10 @@ export function TrackerConnection({
       return;
     }
     // Permission requests must originate directly from the user's click, before awaiting.
-    const permission = browser.permissions.request({ origins: [trackingPermissionPattern(url)] });
+    const permission = browser.permissions.request({
+      origins: [trackingPermissionPattern(url), ...(automatic ? WEBMAIL_ORIGINS : [])],
+      ...(automatic && { permissions: ['alarms'] }),
+    });
     setBusy(true);
     onBusyChange?.(true);
     setError('');
@@ -67,6 +75,7 @@ export function TrackerConnection({
       try {
         if (!(await permission)) throw new Error('permission');
         await connectTracker(url);
+        if (automatic) await enableAutomaticTracking();
         setBase(undefined);
         await onConnected(url);
       } catch (failure) {
@@ -151,7 +160,9 @@ export function TrackerConnection({
               setBusy(true);
               onBusyChange?.(true);
               setError('');
-              void disconnectTracker()
+              void setTrackingOptions({ automatic: false, notifications: false })
+                .then(disconnectTracker)
+                .then(syncTrackingIntegration)
                 .then(() => setBase(undefined))
                 .then(onDisconnected)
                 .catch((failure) => setError(trackerErrorMessage(failure)))

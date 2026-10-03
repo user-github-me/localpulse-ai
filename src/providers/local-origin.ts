@@ -45,7 +45,9 @@ export async function syncLocalOriginRules(endpoints: readonly EndpointConfig[])
   const extensionHost = new URL(browser.runtime.getURL('/')).host;
   const existing = await dnr.getDynamicRules();
   await dnr.updateDynamicRules({
-    removeRuleIds: existing.map((rule) => rule.id),
+    removeRuleIds: existing
+      .filter((rule) => rule.id >= FIRST_RULE_ID && rule.id < 2000)
+      .map((rule) => rule.id),
     addRules: localOriginRules(endpoints, extensionHost),
   });
 }
