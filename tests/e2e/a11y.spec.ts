@@ -21,6 +21,27 @@ async function violations(page: Page) {
 }
 
 for (const theme of ['light', 'dark'] as const) {
+  test(`research, tabs and media dialogs have no violations (${theme})`, async ({
+    context,
+    extensionId,
+    article,
+  }) => {
+    await seedStorage(context, extensionId, { settings: { theme } });
+    const panel = await openPanel(context, extensionId, article);
+    for (const title of [
+      'Research library',
+      'Tab organizer',
+      'Web research',
+      'Image and PDF text',
+      'Audio transcript',
+    ]) {
+      await panel.getByRole('button', { name: title, exact: true }).click();
+      const dialog = panel.getByRole('dialog', { name: title });
+      await expect(dialog).toBeVisible();
+      expect(await violations(panel)).toEqual([]);
+      await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+    }
+  });
   test(`side panel has no accessibility violations (${theme})`, async ({
     context,
     extensionId,

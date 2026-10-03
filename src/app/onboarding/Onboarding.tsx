@@ -253,7 +253,7 @@ function Finish() {
         {t('onboarding.doneTitle')}
       </h1>
       <ul className="mt-6 space-y-3 text-[0.95rem] leading-relaxed">
-        <li>{t('onboarding.tip1', { shortcut })}</li>
+        <li>{shortcut ? t('onboarding.tip1', { shortcut }) : t('onboarding.tip1NoShortcut')}</li>
         <li>{t('onboarding.tip2')}</li>
         <li>{t('onboarding.tip3')}</li>
         <li>{t('onboarding.tipTracking')}</li>

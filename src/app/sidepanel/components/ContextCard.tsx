@@ -232,7 +232,9 @@ function AccessNeeded({ tabId, sitePattern }: { tabId?: number; sitePattern?: st
   return (
     <>
       <p className="text-sm font-medium">{t('context.accessTitle')}</p>
-      <p className="mt-0.5 text-[0.8rem] text-muted">{t('context.accessBody', { shortcut })}</p>
+      <p className="mt-0.5 text-[0.8rem] text-muted">
+        {shortcut ? t('context.accessBody', { shortcut }) : t('context.accessBodyNoShortcut')}
+      </p>
       <Button
         size="sm"
         className="mt-2"

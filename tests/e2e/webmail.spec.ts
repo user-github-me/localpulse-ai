@@ -82,6 +82,10 @@ for (const host of ['mail.google.com', 'outlook.live.com']) {
       const panel = await openPanel(context, extensionId, mail);
       await panel.getByRole('button', { name: 'Email tracking', exact: true }).click();
       const tracking = panel.getByRole('dialog', { name: 'Email tracking' });
+      await expect(
+        tracking.getByRole('button', { name: 'Turn off automatic tracking' }),
+      ).toBeEnabled();
+      await panel.screenshot({ path: `local/screens/${host}-dashboard-v1.1.png` });
       await tracking.locator('summary').filter({ hasText: 'Test tracking service' }).click();
       await tracking.getByRole('button', { name: 'Test tracking service', exact: true }).click();
       await expect(tracking.getByText(/The encrypted tracking pipeline works/)).toBeVisible();

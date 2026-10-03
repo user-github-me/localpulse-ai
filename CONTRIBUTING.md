@@ -20,16 +20,20 @@ isn't there, and the in-browser models don't run under `dev` (their worker would
 server, which Chrome doesn't allow). To try on-device AI, run `corepack pnpm build` and load
 `local/build/chrome-mv3` in your everyday Chrome.
 
-| Command                                 | What it does                                                  |
-| --------------------------------------- | ------------------------------------------------------------- |
-| `corepack pnpm test:tracker`            | Encrypted read service tests (native Node)                    |
-| `corepack pnpm test`                    | Unit tests (Vitest)                                           |
-| `corepack pnpm test:e2e`                | Builds a test version and runs the browser tests (Playwright) |
-| `corepack pnpm lint` / `compile`        | ESLint / TypeScript                                           |
-| `corepack pnpm build` / `build:firefox` | Production builds in `local/build/`                           |
-| `corepack pnpm zip` / `zip:firefox`     | Store packages in `local/build/`                              |
+| Command                                 | What it does                                                    |
+| --------------------------------------- | --------------------------------------------------------------- |
+| `corepack pnpm test:tracker`            | Encrypted read service tests (native Node)                      |
+| `corepack pnpm test`                    | Unit tests (Vitest)                                             |
+| `corepack pnpm test:e2e`                | Builds a test version and runs the browser tests (Playwright)   |
+| `corepack pnpm lint` / `compile`        | ESLint / TypeScript                                             |
+| `corepack pnpm build` / `build:firefox` | Production builds in `local/build/`                             |
+| `corepack pnpm zip` / `zip:firefox`     | Store packages in `local/build/`                                |
+| `corepack pnpm crx`                     | Sign and verify a local CRX with the existing local signing key |
 
 Before the first `corepack pnpm test:e2e`, run `corepack pnpm exec playwright install chromium`.
+The command builds both production and test manifests. A production startup test verifies
+onboarding/toolbar initialization with no optional permissions; other flows use the test manifest
+to bypass interactive browser permission prompts.
 A slow test downloads a real 0.7 GB in-browser model and answers with it:
 
 ```sh
@@ -40,6 +44,12 @@ LOCALPULSE_REAL_WEBLLM=1 corepack pnpm exec playwright test webllm-real
 The Chrome build bundles the in-browser models' WebAssembly files, which the build downloads and
 checks against `scripts/webllm-libs.sha256`. After updating `@mlc-ai/web-llm` or the model list,
 run `corepack pnpm webllm-libs --update-hashes` and include the new hashes in your pull request.
+
+Store-preparation source and verification limits are public in [docs/store/v1.1.0.md](docs/store/v1.1.0.md).
+Run `node scripts/capture-store.mjs`, the screenshot-producing browser tests, and
+`node scripts/prepare-store.mjs` for synthetic-data UI screenshots. The signed CRX uses local keys
+which must never be committed; standard browser-store uploads use the production ZIP unless the
+item has opted into Verified CRX Uploads.
 
 ## Good first contributions
 
@@ -123,3 +133,27 @@ only after the maintainer explicitly asks. The current feature release is v1.1.0
 
 By contributing, you agree that your work is released under the [MIT license](LICENSE) and that you
 follow the [code of conduct](CODE_OF_CONDUCT.md).
+
+## Feature issues and completion
+
+Use the public feature issues linked in [ROADMAP.md](ROADMAP.md) to discuss implementation and
+coordinate contributions. PR descriptions use `Closes #number` for implemented acceptance criteria.
+GitHub closes the issue automatically when the PR merges into the default branch. Before merge,
+the issue stays open with an implementation/test status; do not close it just because code was
+pushed. Store publication is a separate milestone.
+
+Local media executables are copied from pnpm-pinned packages by `scripts/media-assets.mjs`.
+Model data is fetched only after user consent, from pinned revisions in `src/core/media.ts`.
+Native dependency build scripts are deliberately disabled in `pnpm-workspace.yaml`; include
+that file in source-review packages. Real OCR/Whisper smoke tests are optional:
+
+```sh
+mkdir -p local/fixtures
+say -o local/fixtures/voice-test.wav --data-format=LEI16@16000 'Private research stays on this device.'
+corepack pnpm build:e2e
+LOCALPULSE_REAL_MEDIA=1 corepack pnpm exec playwright test media-real
+```
+
+The example creates audio with macOS's installed `say` tool. On other systems use your own
+short local WAV containing “private research stays on this device” at the same fixture path.
+No personal recordings belong in tests or source control.

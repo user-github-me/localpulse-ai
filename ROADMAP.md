@@ -50,9 +50,32 @@ worker handles browser integration. All executable code ships in the extension p
 workspace is intentionally temporary: silently retaining whole pages would change what users
 expect from a private page assistant.
 
-## Next upgrades, in order
+## v1.1.0 community feature issues
 
-These are proposed work, not capabilities promised by the current build.
+Implementation is being reviewed through [PR #11](https://github.com/user-github-me/localpulse-ai/pull/11).
+These are source changes, not a published store update. Linked issues close when the PR merges:
+
+| Issue                                                            | Feature                                                    |
+| ---------------------------------------------------------------- | ---------------------------------------------------------- |
+| [#2](https://github.com/user-github-me/localpulse-ai/issues/2)   | Explicit local research collections, search and backups    |
+| [#3](https://github.com/user-github-me/localpulse-ai/issues/3)   | Verified source excerpts and extracted PDF page references |
+| [#4](https://github.com/user-github-me/localpulse-ai/issues/4)   | Local OCR with opt-in language data                        |
+| [#5](https://github.com/user-github-me/localpulse-ai/issues/5)   | Private tab review, domain groups and saved sessions       |
+| [#6](https://github.com/user-github-me/localpulse-ai/issues/6)   | Local audio transcription with opt-in Whisper data         |
+| [#7](https://github.com/user-github-me/localpulse-ai/issues/7)   | Explicit typed-query web research                          |
+| [#8](https://github.com/user-github-me/localpulse-ai/issues/8)   | Private tracking-image names                               |
+| [#9](https://github.com/user-github-me/localpulse-ai/issues/9)   | Optional generic read-activity notifications               |
+| [#10](https://github.com/user-github-me/localpulse-ai/issues/10) | Synthetic encrypted tracking test and cleanup              |
+| [#12](https://github.com/user-github-me/localpulse-ai/issues/12) | Automatic Gmail/Outlook insertion and local message badges |
+| [#13](https://github.com/user-github-me/localpulse-ai/issues/13) | Platform-aware, configured shortcut hints                  |
+
+Real-model checks recognize a generated local image and transcribe a generated local recording.
+They demonstrate that the bundled runtimes work under Chrome's extension security policy; they
+are not an accuracy benchmark or proof that every webmail UI variation is supported.
+
+## Further upgrades, in order
+
+The items below include longer-term refinements beyond the issue-linked first implementations.
 
 1. **Evidence you can navigate.** Preserve PDF page numbers and web headings through extraction
    and retrieval; let an answer's citation open its exact source excerpt. Validate the excerpt

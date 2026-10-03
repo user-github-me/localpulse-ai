@@ -43,6 +43,14 @@ Every answer says where it was written: a green light means on this device, ambe
 - **Document workspace**: read several PDFs, text files and captured pages together. Choose which
   sources to include, compare them, and see which document contains a checked quote.
 - **Checked quotes**: quotes in an answer are looked up on the page, and invented ones are flagged.
+  Open the verified source excerpt and its PDF page when available.
+- **Research library:** explicitly save, search, rename and reopen source collections locally,
+  with JSON import/export and fresh cloud consent.
+- **Local OCR and audio transcription:** extract text from images/scanned PDFs and chosen audio,
+  after an explicit model-data download. Review or export text and add it to your workspace.
+- **Tab organizer:** preview duplicates, confirm closing, group domains in Chrome and save or
+  restore named sessions locally.
+- **Optional web research:** send only a query you type and select public sources to fetch.
 - **Continue in ChatGPT, Claude, Gemini or Perplexity**: LocalPulse copies the question and opens
   the site, and you paste it and press Send. It never automates those sites.
 - **Searchable local history**, with favorites, custom names, Markdown export and portable JSON
@@ -53,8 +61,9 @@ Every answer says where it was written: a green light means on this device, ambe
 - **Read answers aloud** with voices installed on your device. Remote voices are excluded.
 - **Local follow-ups:** review and save a page reminder, search it, mark it done or snooze it.
   Export open tasks to your calendar for reminders.
-- **Optional private email read activity:** manually paste a tracking image and collect estimated
-  read counts and times. The public open-source service encrypts timestamps for your extension,
+- **Optional private email read activity:** enable it during onboarding for automatic Gmail/Outlook
+  draft images, per-draft toggles and local read badges. Manual images remain available for other
+  apps. The public open-source service encrypts timestamps for your extension,
   then deletes events after collection. Private keys and results stay in your browser, with
   password-encrypted backups. No email content, subjects, recipient addresses or link tracking.
 - Light and dark themes, keyboard friendly, and translatable.
@@ -89,6 +98,8 @@ cannot prove a human read. See [the complete service disclosure](tools/email-tra
   <img src="docs/screenshots/summary.png" width="300" alt="The side panel with a summary written on this device">
   <img src="docs/screenshots/consent.png" width="300" alt="LocalPulse asking before sending a page to a cloud provider">
   <img src="docs/screenshots/quotes.png" width="300" alt="An answer with its quotes checked against the page">
+  <img src="docs/screenshots/email-tracking-v1.1.png" width="300" alt="Optional automatic email tracking controls with synthetic test data">
+  <img src="docs/screenshots/research-library-v1.1.png" width="300" alt="A saved local research collection">
 </p>
 
 ## Install
@@ -188,37 +199,18 @@ dates while the board is open and does not deliver desktop notifications. Export
 events are copies: completing or editing a task here does not update an earlier calendar import.
 
 The first-run welcome flow offers optional email tracking after AI setup. Choose **Enable email
-tracking** to connect the free public service, or **Skip for now**. Nothing contacts the tracking
-service before you opt in, and images are never inserted automatically. Existing users can open
-**Settings → About → Show the welcome guide again** to revisit setup.
+tracking** and accept browser access to the service and supported email sites. Your first image
+is prepared automatically. Gmail and Outlook drafts receive separate images and a per-draft
+tracking toggle; opening a tracked message displays a local estimated-read badge. Read the
+[automatic workflow](#automatic-email-tracking-v110) below for supported hosts and limitations.
 
-For email read activity, click **Email tracking** below the provider bar. The free public service is
-already selected: click **Enable email tracking**, then **Create tracking image**. Expand **Use your
-own server** for a custom deployment; see the [deployment instructions](tools/email-tracker/README.md).
-Review the linked public source and data policy. **Back up this image and your keys before sending**
-opens password-encrypted backup controls. Copy the image into a rich-text email
-composer and test with your own inbox: mail clients may remove pasted images. The extension never
-inserts tracking automatically or sends mail.
-
-**Check reads** saves decrypted timestamps and counts in your browser, then
-sends a signed acknowledgement that deletes exactly those events. Repeat to collect further
-batches. Tracking images and waiting events have no expiry; provider quotas and the 1,000-event
-queue limit can still cause missed activity. Apple Mail, Gmail proxies, cached images and security
-scanners make counts unreliable measures of human reading. Disconnecting keeps your local keys
-and results. Removing an image clears its queued events and local results, but already-sent
-images remain valid and can generate new events. Keep a backup if you may need access later.
-
-A quick tour to check everything works:
-
-- Open an article and click **Summarize**.
-- Type a question about it. Quotes in the answer are checked against the page.
-- Select some text, right-click, and choose **LocalPulse AI → Explain**.
-- Open a PDF in a tab, or drop one into the panel, and ask about it.
-- Open **Settings** (the gear in the panel) to reorder providers, add an API key or turn on
-  Local-only mode.
-
-Chrome gives an extension access to a tab when you click its icon on that tab. To use LocalPulse on
-every tab without clicking the icon, choose **Allow on all sites** in the panel.
+Open **Email tracking** in the side panel for counts and times, notifications, a service test,
+private names, password-encrypted backup and custom hosting. Other mail apps use manual images
+under **Advanced · manual images and private names**. The service is public and MIT-licensed:
+[GitHub source](tools/email-tracker/README.md), [live disclosure](https://localpulse-email-tracker.vercel.app/).
+It receives public cryptographic keys and image requests, queues encrypted timestamps without
+expiry and deletes signed acknowledged events after local saving. Email subjects, recipients,
+message content and private draft names never enter the tracking API.
 
 ## How it works
 
@@ -232,7 +224,7 @@ Service worker: toolbar button, right-click menu, shortcuts
 ```
 
 The AI runs in the side panel page, not the service worker, so long answers aren't cut off. No
-content script runs on pages until you ask about them.
+page reader runs until you ask about a page. Separately opted-in Gmail/Outlook tracking registers a bundled site-specific integration script.
 
 ## Permissions
 
@@ -243,12 +235,17 @@ content script runs on pages until you ask about them.
 | `scripting`                           | Runs the page reader in the tab you ask about, and puts proofread or rewritten text back when you click **Replace selection**.                                                                                                                              |
 | `storage`, `unlimitedStorage`         | Keeps settings, history and downloaded models on this computer.                                                                                                                                                                                             |
 | `contextMenus`                        | Adds LocalPulse to the right-click menu for selected text.                                                                                                                                                                                                  |
-| `declarativeNetRequestWithHostAccess` | Lets Ollama accept requests from LocalPulse, only for servers on your computer you connected.                                                                                                                                                               |
+| `declarativeNetRequestWithHostAccess` | Lets connected local AI servers accept requests; also blocks identifiable owner-side tracking-image loads on opted-in webmail sites.                                                                                                                        |
 | Optional: access to sites             | Asked when you choose **Allow on all sites**, add other tabs to a question, connect an AI endpoint or optional tracking server, or read a PDF open in a tab. When LocalPulse can't read the tab you're on, Chrome also shows its own request for that site. |
-| Optional: `tabs`                      | Asked when you add other tabs to a question, to list their titles and addresses.                                                                                                                                                                            |
+| Optional: `tabs`                      | Asked when you add other tabs to a question or review the tab organizer, to list titles and addresses.                                                                                                                                                      |
 
 Installing LocalPulse shows no permission warnings; the optional ones are asked for when a feature
 needs them.
+
+Optional `tabGroups` is requested for Chrome domain grouping; `alarms` for opted-in tracking
+collection; `notifications` separately for generic read-activity notifications. Gmail/Outlook
+access is requested only when automatic tracking is enabled. Model downloads and explicit web
+research request their hosts on demand. No Gmail API, inbox account or OAuth access is used.
 
 ## Limitations
 
@@ -261,7 +258,7 @@ needs them.
 - YouTube transcripts depend on undocumented YouTube internals and may stop working.
 - The Firefox version doesn't include the in-browser model yet: its files are too large for
   addons.mozilla.org's validator.
-- Scanned PDFs (images without text) can't be read.
+- Scanned PDFs need explicit local OCR and a language-data download. Recognition accuracy varies.
 - Workspaces are temporary, and JSON history backups hold up to 1,000 conversations and 20,000
   messages within 25 MB. Large sets may take longer to search or answer with a small local model.
 - Free cloud plans change often. On Google's free Gemini tier, prompts may be used to improve
@@ -292,7 +289,60 @@ and surrounding context come from the actual source; PDF page numbers come from 
 headings. A source link opens a remote PDF at that page. For local files the excerpt remains local.
 Repeated wording opens its first match. Matching a quote does not verify the entire answer.
 
-These features track public issues [#2](https://github.com/user-github-me/localpulse-ai/issues/2) and
-[#3](https://github.com/user-github-me/localpulse-ai/issues/3). The remaining v1.1 feature proposals
-are [#4–#10](https://github.com/user-github-me/localpulse-ai/issues); each describes acceptance
-criteria, privacy boundaries and contributor starting points.
+Public issues [#2–#10](https://github.com/user-github-me/localpulse-ai/issues) define the v1.1
+features, acceptance criteria, privacy boundaries and contributor starting points. Implementation
+is under review in [PR #11](https://github.com/user-github-me/localpulse-ai/pull/11); linked issues
+close when that PR merges.
+
+## Automatic email tracking (v1.1.0)
+
+In the welcome guide, choose **Enable email tracking** and accept the browser's access request.
+LocalPulse connects to the public service and prepares the first image. Open Gmail or Outlook
+(on mail.google.com, outlook.live.com, outlook.office.com or outlook.office365.com), compose
+as usual, and check the **LocalPulse · tracking on** control beside the editor. Every draft
+gets a separate random image. Click the control to turn tracking off for that draft. LocalPulse
+never presses Send or reads recipients, subjects or message text for tracking.
+
+Opening a tracked message shows an **estimated reads** badge near its header when its image
+capability is present in the page. Click to collect again; scheduled collection runs every
+15 minutes while the browser runs. **Email tracking** in the panel shows activity, optional
+generic notifications, a service test, private image names, encrypted backup and self-hosting.
+Manual images for other mail apps are under **Advanced · manual images and private names**.
+Other sites need a reviewed adapter; arbitrary editors are not automatically modified.
+
+Direct image requests from the owner's supported webmail pages are blocked where browser rules
+can identify the capability. Gmail/Outlook server-side proxy fetches and mail preloads can still
+produce activity or cache later opens. Counts are image requests, not proof of human reads or
+delivery. Disclose tracking to recipients. Reload mail tabs after disabling integration.
+The free queue and local image limits still apply; no event or image time expiry is introduced.
+
+Public implementation issue: [#12](https://github.com/user-github-me/localpulse-ai/issues/12).
+
+## Local media and web research (v1.1.0)
+
+**Image and PDF text** recognizes user-chosen images/scans with bundled Tesseract. Choose one of
+seven languages and download its data (roughly 2–13 MB) from a pinned tessdata_fast commit on
+raw.githubusercontent.com. Text stays here; review/correct it before adding to your workspace.
+Limits are 25 MB per file, 10 PDF pages and 16 million image pixels.
+
+**Audio transcript** downloads a pinned Whisper tiny English model from Hugging Face (roughly
+75 MB), then transcribes chosen recordings on-device. No microphone permission or recording
+upload. Up to 10 minutes / 25 MB, in formats your browser can decode. Speech accuracy varies;
+review the text before using it. OCR/audio text can be exported or added to the existing summary,
+study and action-items workspace. Closing the tool releases its runtime; cached model data
+remains until extension/browser data is cleared.
+
+**Web research** sends only a query you type after clicking Search. Its default searches Wikipedia;
+advanced users can provide a public HTTPS SearXNG server with JSON enabled. Choose each public
+source before fetching its text into the workspace. No current page or email text is attached
+automatically. A separate DuckDuckGo link offers wider search. Search services see your query
+and network metadata; AI Local-only mode governs AI providers and does not suppress this explicit
+search. Login-dependent, script-only or redirected sources may require manual page capture.
+
+**Tab organizer** requests access when you choose to review tabs. Preview exact duplicates,
+select tabs to save as a named local session, or group by domain in Chrome. Closing and restoring
+require confirmation; pinned/changed tabs are protected. Saved sessions contain full addresses
+and titles, which may include private query details. Delete them separately from chat history.
+
+Shortcut hints use the browser-reported operating system and actual configured extension command.
+Windows/Linux display Ctrl/Alt names; macOS uses its modifier symbols.

@@ -1,3 +1,5 @@
+// @ts-expect-error Build helper uses native Node JavaScript.
+import { mediaAssets } from './scripts/media-assets.mjs';
 import { existsSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
@@ -20,6 +22,7 @@ export default defineConfig({
       'scripts/**',
       'package.json',
       'pnpm-lock.yaml',
+      'pnpm-workspace.yaml',
       '.nvmrc',
       'tsconfig.json',
       'wxt.config.ts',
@@ -45,10 +48,13 @@ export default defineConfig({
         'declarativeNetRequestWithHostAccess',
         'unlimitedStorage',
         ...(isFirefox ? [] : ['sidePanel']),
-        ...(mode === 'e2e' ? ['tabs'] : []),
+        ...(mode === 'e2e' ? ['tabs', 'tabGroups', 'alarms', 'notifications'] : []),
       ],
       // The e2e build also gets "tabs" up front, for the same reason.
-      optional_permissions: mode === 'e2e' ? [] : ['tabs'],
+      optional_permissions:
+        mode === 'e2e'
+          ? []
+          : ['tabs', 'alarms', 'notifications', ...(!isFirefox ? ['tabGroups'] : [])],
       optional_host_permissions: ['<all_urls>'],
       // End-to-end tests can't click permission prompts, so that build gets access up front.
       ...(mode === 'e2e' && { host_permissions: ['<all_urls>'] }),
@@ -102,6 +108,7 @@ export default defineConfig({
     // Bundle the WebLLM libraries: the Chrome Web Store treats WebAssembly as code, so it can't be
     // downloaded at runtime.
     'build:publicAssets': (wxt, files) => {
+      files.push(...mediaAssets());
       if (wxt.config.browser === 'firefox') return;
       if (!existsSync(WEBLLM_LIBS)) {
         if (wxt.config.mode !== 'e2e' && wxt.config.command === 'build') {

@@ -1,3 +1,4 @@
+import { mkdir } from 'node:fs/promises';
 import { test, expect, openPanel, seedStorage, mockChatApi, endpoint, MOCK_API } from './extension';
 const file = {
   name: 'research.txt',
@@ -16,6 +17,8 @@ test('explicitly saves, reopens after panel closure, exports and deletes a colle
   await library.getByRole('textbox', { name: 'Collection name' }).fill('My research');
   await library.getByRole('button', { name: 'Save chosen sources' }).click();
   await expect(library.getByRole('heading', { name: 'My research' })).toBeVisible();
+  await mkdir('local/screens', { recursive: true });
+  await panel.screenshot({ path: 'local/screens/research-library-v1.1.png' });
   await panel.close();
   panel = await openPanel(context, extensionId, article);
   await panel.getByRole('button', { name: 'Research library', exact: true }).click();

@@ -146,3 +146,18 @@ node --test tools/email-tracker/server.test.mjs
 Tests cover content rejection, owner-only decryption/deletion, ciphertext tampering, exact
 acknowledgement with concurrent arrivals, no time expiry, queue failures and public disclosure.
 [MIT license](../../LICENSE).
+
+## Automatic extension integration
+
+The v1.1 client optionally inserts images into Gmail/Outlook drafts after a single explicit
+onboarding choice and browser permission. Each draft uses a separate random capability; local
+draft UUIDs and user-chosen names never enter this API. Message badges use image capabilities
+to show owner-decrypted counts/times locally. Optional browser collection runs every 15 minutes
+while the browser is running; notifications are opt-in and generic. The queue still stores only
+encrypted image-request timestamps and deletes signed acknowledged events without time expiry.
+
+A user-initiated service test creates a dedicated synthetic capability, requests its image,
+decrypts/saves the timestamp and signs deletion. Successful tests remove their local test entry.
+Failures retain the test capability locally for cleanup on retry. No real email is needed or
+read. Owner browser rules block identifiable direct image loads from supported webmail pages,
+but hosting/server-side mail proxies and preloads can still generate requests.

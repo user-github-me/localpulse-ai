@@ -17,6 +17,14 @@ import { t } from '@/app/shared/i18n';
 const SCRIPT_ID = 'localpulse-webmail';
 const ALARM = 'localpulse-read-activity';
 const RULE_START = 5000;
+function onReadActivityAlarm(alarm: { name: string }): void {
+  if (alarm.name === ALARM) void collectAndNotify().catch(() => {});
+}
+/** Chrome exposes optional API namespaces only after the permission has been granted. */
+function registerAlarmListener(): void {
+  const event = browser.alarms?.onAlarm;
+  if (event && !event.hasListener(onReadActivityAlarm)) event.addListener(onReadActivityAlarm);
+}
 let syncing = Promise.resolve();
 /** Blocks direct/proxied image loads initiated by the owner's supported webmail pages. */
 export async function syncOwnerPixelRules(): Promise<void> {
@@ -79,9 +87,10 @@ export function syncTrackingIntegration(): Promise<void> {
           connected &&
           (options.automatic || options.notifications) &&
           (await browser.permissions.contains({ permissions: ['alarms'] }))
-        )
+        ) {
+          registerAlarmListener();
           await browser.alarms.create(ALARM, { periodInMinutes: 15 });
-        else await browser.alarms.clear(ALARM);
+        } else await browser.alarms?.clear(ALARM);
       }),
     );
   return syncing;
@@ -112,7 +121,7 @@ export function collectAndNotify(): Promise<void> {
       options.notifications &&
       (await browser.permissions.contains({ permissions: ['notifications'] }))
     )
-      await browser.notifications.create({
+      await browser.notifications?.create({
         type: 'basic',
         iconUrl: browser.runtime.getURL('/icons/128.png'),
         title: t('trackingAuto.notificationTitle'),
@@ -126,9 +135,8 @@ export function collectAndNotify(): Promise<void> {
 export function registerTrackingBackground(): void {
   trackingOptionsItem.watch(() => void syncTrackingIntegration().catch(() => {}));
   browser.permissions.onRemoved.addListener(() => void syncTrackingIntegration().catch(() => {}));
-  browser.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === ALARM) void collectAndNotify().catch(() => {});
-  });
+  browser.permissions.onAdded.addListener(() => void syncTrackingIntegration().catch(() => {}));
+  registerAlarmListener();
   browser.runtime.onMessage.addListener(async (message: unknown, sender) => {
     if (!message || typeof message !== 'object') return;
     const data = message as Record<string, unknown>;
