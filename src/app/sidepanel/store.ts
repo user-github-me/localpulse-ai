@@ -14,9 +14,21 @@ import { stripPageTags, type PromptPage } from '@/core/prompts';
 import { fillRecipePrompt, questionRecipe, recipeById, type Recipe } from '@/core/recipes';
 import { route, type RouteDecision, type RoutePolicy } from '@/core/router';
 import { runTurn, type TurnStatus, type TurnStrategy } from '@/core/run';
+import { parseFlashcards } from '@/core/study';
+import {
+  captureDocument,
+  checkWorkspaceQuotes,
+  workspaceFits,
+  workspacePrompt,
+  workspaceSourceKey,
+  MAX_WORKSPACE_FILE_BYTES,
+  MAX_WORKSPACE_DOCUMENTS,
+  type WorkspaceDocument,
+  type SourceQuote,
+} from '@/core/workspace';
 import type { ExtractedPage } from '@/extractors/types';
 import { errorMessage, isAbortError, ProviderError } from '@/lib/errors';
-import { countWords, hostnameOf, originPattern, randomId } from '@/lib/text';
+import { countWords, originPattern, randomId } from '@/lib/text';
 import { presetById } from '@/providers/presets';
 import { createProviders, orderProviders } from '@/providers/registry';
 import type { Privacy, Provider, ProviderState, TaskKind } from '@/providers/types';
@@ -45,6 +57,7 @@ export interface ItemContext {
   editableText?: string;
   /** Set when the content came from several tabs. */
   tabCount?: number;
+  documentCount?: number;
 }
 
 export interface ChatItem {
@@ -70,7 +83,7 @@ export interface ChatItem {
   partsTotal?: number;
   redactions?: number;
   /** Quotes in the answer, checked against the page (core/quotes.ts). */
-  quotes?: CheckedQuote[];
+  quotes?: (CheckedQuote | SourceQuote)[];
   /** The provider that wrote an answer, and its server (core/conversation.ts, providerKey). */
   providerKey?: string;
   /** Text chosen outside the panel for this request, so Try again uses it too. Not saved. */
@@ -93,6 +106,8 @@ export interface ChatItem {
    * would put a placeholder into the page.
    */
   unrestored?: boolean;
+  /** Source identities for hand-off while the original workspace is still open. Never saved. */
+  workspaceDocumentIds?: string[];
 }
 
 /** Text chosen outside the panel, with the address of the page it's on. */
@@ -110,6 +125,7 @@ export interface RunOptions {
    * in the panel.
    */
   tabId?: number;
+  workspaceDocumentIds?: string[];
 }
 
 export type ConsentChoice = 'once' | 'site' | 'always' | 'cancel' | 'use-alternative';
@@ -126,6 +142,7 @@ export interface ConsentPrompt {
   host?: string;
   /** Number of tabs when the content comes from several. */
   tabCount?: number;
+  documentCount?: number;
   words: number;
   source: 'page' | 'selection' | 'none';
   dataNote?: string;
@@ -145,6 +162,7 @@ export interface SetupInfo {
     contextUrl?: string;
     selection?: SelectionSource;
     tabId?: number;
+    workspaceDocumentIds?: string[];
   };
   downloadable?: { id: string; label: string };
   cloudBlocked: boolean;
@@ -184,6 +202,9 @@ interface PanelState {
   historyOpen: boolean;
   /** Other tabs read together with the current one. */
   extraTabs: ExtraTab[];
+  /** Captured sources live in this panel only; history never stores their content. */
+  documents: WorkspaceDocument[];
+  workspaceActive: boolean;
   init(): () => void;
   refreshTab(tabId?: number): Promise<void>;
   runRecipe(recipeId: string, options?: RunOptions): Promise<void>;
@@ -199,6 +220,13 @@ interface PanelState {
   makeDefault(providerId: string): Promise<void>;
   showToast(message: string): void;
   openFile(file: File): Promise<void>;
+  openFiles(files: File[]): Promise<void>;
+  addFiles(files: File[]): Promise<void>;
+  capturePage(): Promise<void>;
+  toggleDocument(id: string): void;
+  removeDocument(id: string): void;
+  setWorkspaceActive(active: boolean): void;
+  clearWorkspace(): void;
   closeFile(): void;
   setHistoryOpen(open: boolean): void;
   setExtraTabs(tabs: ExtraTab[]): void;
@@ -320,9 +348,26 @@ export const usePanel = create<PanelState>()((set, get) => {
     const settings = get().settings;
     if (!settings) return;
     try {
+      const { workspaceActive, documents, file, tab } = get();
+      const urls = workspaceActive
+        ? documents.filter((document) => document.enabled).map((document) => document.url)
+        : [file?.url ?? tab.page?.url];
+      const keys = [
+        ...new Set(
+          workspaceActive
+            ? documents.filter((document) => document.enabled).map(workspaceSourceKey)
+            : urls.map(sourceKey),
+        ),
+      ];
+      const sites = keys.filter((key) => key !== UNKNOWN_SOURCE && !key.startsWith('file:'));
       const decision = await route(
         providersFor(settings),
-        { task: 'chat', host: hostnameOf(get().tab.page?.url) },
+        {
+          task: 'chat',
+          host: sites.length === 1 ? sites[0] : undefined,
+          hosts: sites.length > 1 ? sites : undefined,
+          requireConsent: keys.some((key) => key === UNKNOWN_SOURCE || key.startsWith('file:')),
+        },
         await policyFor(settings),
       );
       set({
@@ -350,20 +395,30 @@ export const usePanel = create<PanelState>()((set, get) => {
     const now = Date.now();
     await saveConversation({
       id: conversationId,
-      title: conversationTitle(stored),
+      title: existing?.renamed ? existing.title : conversationTitle(stored),
+      favorite: existing?.favorite,
+      renamed: existing?.renamed,
       url: stored.find((item) => item.context?.url)?.context?.url,
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       // Tab ids mean nothing after a restart and may point at another tab by then.
       // The selection is page text, which history never keeps.
-      items: stored.map(({ status: _status, selection: _selection, fromTabId: _tab, ...item }) => ({
-        ...item,
-        context: item.context && {
-          ...item.context,
-          editableTabId: undefined,
-          editableText: undefined,
-        },
-      })),
+      items: stored.map(
+        ({
+          status: _status,
+          selection: _selection,
+          fromTabId: _tab,
+          workspaceDocumentIds: _documents,
+          ...item
+        }) => ({
+          ...item,
+          context: item.context && {
+            ...item.context,
+            editableTabId: undefined,
+            editableText: undefined,
+          },
+        }),
+      ),
     });
   };
 
@@ -378,7 +433,7 @@ export const usePanel = create<PanelState>()((set, get) => {
     new Promise<ConsentChoice>((resolve) => set({ consent: { ...prompt, resolve } }));
 
   const runPending = async (action: PendingAction) => {
-    if (running || get().busy) {
+    if (running || get().busy || get().fileStatus) {
       queued = action;
       return;
     }
@@ -391,13 +446,20 @@ export const usePanel = create<PanelState>()((set, get) => {
     });
   };
 
+  const finishReading = () => {
+    set({ fileStatus: null });
+    const next = queued;
+    queued = undefined;
+    if (next) void runPending(next);
+  };
+
   async function execute(
     recipe: Recipe,
     instruction: string,
     userText: string,
     options: RunOptions = {},
   ): Promise<void> {
-    if (running || get().busy) return;
+    if (running || get().busy || get().fileStatus) return;
     running = true;
     try {
       await executeTurn(recipe, instruction, userText, options);
@@ -424,75 +486,112 @@ export const usePanel = create<PanelState>()((set, get) => {
     let sources: string[] = [];
     // An action started from a page is about that page, even when a file is open in the panel.
     const fromPage = options.tabId !== undefined || override !== undefined;
-    const file = fromPage ? null : get().file;
+    if (
+      options.workspaceDocumentIds?.some(
+        (id) => !get().documents.some((document) => document.id === id),
+      )
+    ) {
+      get().showToast(t('workspace.sourcesGone'));
+      return;
+    }
+    const workspaceDocuments = options.workspaceDocumentIds
+      ? options.workspaceDocumentIds.flatMap((id) => {
+          const document = get().documents.find((document) => document.id === id);
+          return document ? [{ ...document, enabled: true }] : [];
+        })
+      : !fromPage && get().workspaceActive
+        ? get().documents.filter((document) => document.enabled && document.markdown.trim())
+        : [];
+    const usingWorkspace =
+      !fromPage && (Boolean(options.workspaceDocumentIds) || get().workspaceActive);
+    const file = fromPage || usingWorkspace ? null : get().file;
+    let documentCount: number | undefined;
     if (recipe.input !== 'none') {
-      // Re-read the tab so it's current (and, for a right-click, to find the field it came from).
-      if (fromPage || !file) await get().refreshTab(options.tabId);
-      const { tab } = get();
-      const extracted = file ?? (tab.status === 'ready' ? tab.page : undefined);
-      if (override?.text.trim()) {
-        // Text from the context menu. Its own address decides the privacy rules, whatever the
-        // panel shows, and the page around a frame from another site counts too.
-        const samePage = !file && extracted !== undefined && extracted.url === override.url;
-        // The menu's copy of the selection loses line breaks; the page's own copy keeps them.
-        const exact =
-          samePage && extracted.selection && sameText(extracted.selection, override.text)
-            ? extracted.selection
-            : undefined;
-        page = {
-          title: samePage ? extracted.title : 'Selected text',
-          url: override.url ?? '',
-          text: exact ?? override.text,
-          source: 'selection',
-          lang: samePage ? extracted.lang : undefined,
-        };
-        sources = [
-          ...new Set([override.url, override.pageUrl].filter(Boolean).map((url) => sourceKey(url))),
-        ];
-      } else {
-        const selection =
-          settings.preferSelection || recipe.input === 'selection'
-            ? extracted?.selection
-            : undefined;
-        // Proofread or Rewrite change the text you selected; they never rewrite a whole page.
-        if (recipe.input === 'selection' && recipe.mode === 'transform' && !selection) {
-          get().showToast(t('toast.selectFirst'));
+      if (usingWorkspace) {
+        if (recipe.input === 'selection') {
+          get().showToast(t('workspace.selectionOnly'));
           return;
         }
-        const text = selection ?? extracted?.markdown ?? '';
-        if (text.trim()) {
+        page = workspacePrompt(workspaceDocuments);
+        if (!page) {
+          get().showToast(t('workspace.chooseSources'));
+          return;
+        }
+        documentCount = workspaceDocuments.length;
+        page.title =
+          documentCount === 1 ? page.title : t('workspace.count', { count: String(documentCount) });
+        sources = [...new Set(workspaceDocuments.map(workspaceSourceKey))];
+        const citationInstruction =
+          'When citing evidence, name the Document number and title from its heading. Distinguish agreement, disagreement and missing information across documents. Do not invent sources.';
+        if (!instruction.includes(citationInstruction)) instruction += `\n${citationInstruction}`;
+      } else {
+        // Re-read the tab so it's current (and, for a right-click, to find the field it came from).
+        if (fromPage || !file) await get().refreshTab(options.tabId);
+        const { tab } = get();
+        const extracted = file ?? (tab.status === 'ready' ? tab.page : undefined);
+        if (override?.text.trim()) {
+          // Text from the context menu. Its own address decides the privacy rules, whatever the
+          // panel shows, and the page around a frame from another site counts too.
+          const samePage = !file && extracted !== undefined && extracted.url === override.url;
+          // The menu's copy of the selection loses line breaks; the page's own copy keeps them.
+          const exact =
+            samePage && extracted.selection && sameText(extracted.selection, override.text)
+              ? extracted.selection
+              : undefined;
           page = {
-            title: extracted?.title ?? 'Selected text',
-            url: extracted?.url ?? '',
-            text,
-            source: selection ? 'selection' : 'page',
-            lang: extracted?.lang,
+            title: samePage ? extracted.title : 'Selected text',
+            url: override.url ?? '',
+            text: exact ?? override.text,
+            source: 'selection',
+            lang: samePage ? extracted.lang : undefined,
           };
-          sources = [sourceKey(page.url)];
-        } else if (!file && tab.status === 'no-access') {
-          get().showToast(t('toast.allowTab'));
-          return;
-        } else if (recipe.id !== 'question') {
-          get().showToast(
-            extracted?.kind === 'pdf'
-              ? t('toast.pdfNotReady')
-              : tab.status === 'ready'
-                ? t('toast.noText')
-                : t('toast.openPage'),
-          );
-          return;
+          sources = [
+            ...new Set(
+              [override.url, override.pageUrl].filter(Boolean).map((url) => sourceKey(url)),
+            ),
+          ];
+        } else {
+          const selection =
+            settings.preferSelection || recipe.input === 'selection'
+              ? extracted?.selection
+              : undefined;
+          // Proofread or Rewrite change the text you selected; they never rewrite a whole page.
+          if (recipe.input === 'selection' && recipe.mode === 'transform' && !selection) {
+            get().showToast(t('toast.selectFirst'));
+            return;
+          }
+          const text = selection ?? extracted?.markdown ?? '';
+          if (text.trim()) {
+            page = {
+              title: extracted?.title ?? 'Selected text',
+              url: extracted?.url ?? '',
+              text,
+              source: selection ? 'selection' : 'page',
+              lang: extracted?.lang,
+            };
+            sources = [sourceKey(page.url)];
+          } else if (!file && tab.status === 'no-access') {
+            get().showToast(t('toast.allowTab'));
+            return;
+          } else if (recipe.id !== 'question') {
+            get().showToast(
+              extracted?.kind === 'pdf'
+                ? t('toast.pdfNotReady')
+                : tab.status === 'ready'
+                  ? t('toast.noText')
+                  : t('toast.openPage'),
+            );
+            return;
+          }
         }
       }
     }
     // Content whose site can't be checked (a local file, an unknown address) is never covered by
     // saved consent or the never-send list: the user is asked every time.
-    const unverifiable =
-      page !== undefined &&
-      sources.some((key) => key === UNKNOWN_SOURCE || key.startsWith('file:'));
 
     // A rewrite can replace the selection in its text field. Taken now: the tab may change
     // while the consent dialog is open.
-    const tabPage = file ? undefined : get().tab.page;
+    const tabPage = file || usingWorkspace ? undefined : get().tab.page;
     // Only a rewrite, proofread or translation may replace the text: never an explanation.
     const editable =
       page?.source === 'selection' &&
@@ -504,7 +603,7 @@ export const usePanel = create<PanelState>()((set, get) => {
     // Several tabs: read the others too and put each under its own heading.
     const { extraTabs } = get();
     let tabCount: number | undefined;
-    if (page && page.source === 'page' && extraTabs.length > 0 && !file) {
+    if (page && page.source === 'page' && extraTabs.length > 0 && !file && !usingWorkspace) {
       const others = await Promise.all(extraTabs.map((tab) => readTab(tab.tabId)));
       const pages = [
         { title: page.title, url: page.url, markdown: page.text },
@@ -528,6 +627,10 @@ export const usePanel = create<PanelState>()((set, get) => {
         sources = [...new Set(pages.map((item) => sourceKey(item.url)))];
       }
     }
+
+    const unverifiable =
+      page !== undefined &&
+      sources.some((key) => key === UNKNOWN_SOURCE || key.startsWith('file:'));
 
     // 2. Where it runs. Every site the content comes from must allow the cloud.
     const sites = sources.filter((key) => key !== UNKNOWN_SOURCE && !key.startsWith('file:'));
@@ -570,6 +673,9 @@ export const usePanel = create<PanelState>()((set, get) => {
             contextUrl: page?.url || undefined,
             selection: override,
             tabId: options.tabId,
+            workspaceDocumentIds: usingWorkspace
+              ? workspaceDocuments.map((document) => document.id)
+              : undefined,
           },
           downloadable: decision.downloadable && {
             id: decision.downloadable.id,
@@ -595,6 +701,7 @@ export const usePanel = create<PanelState>()((set, get) => {
         providerLabel: provider.label,
         host,
         tabCount,
+        documentCount,
         words: page ? countWords(page.text) : 0,
         source: page?.source ?? 'none',
         dataNote: preset?.dataNote,
@@ -628,6 +735,7 @@ export const usePanel = create<PanelState>()((set, get) => {
       editableTabId,
       editableText: editable ? page.text : undefined,
       tabCount,
+      documentCount,
     };
     const earlier = recipe.id === 'question' ? get().items : [];
     const answerId = randomId('a-');
@@ -658,6 +766,9 @@ export const usePanel = create<PanelState>()((set, get) => {
           context,
           lineBreaks: recipe.mode === 'transform' || undefined,
           selection: override,
+          workspaceDocumentIds: usingWorkspace
+            ? workspaceDocuments.map((document) => document.id)
+            : undefined,
           fromTabId: options.tabId,
         },
       ],
@@ -737,7 +848,13 @@ export const usePanel = create<PanelState>()((set, get) => {
             unrestored: unrestored || undefined,
             // A translation or rewrite is new text, so its quotes aren't quotes from the page.
             quotes:
-              page && recipe.mode !== 'transform' ? checkQuotes(answerText, page.text) : undefined,
+              page &&
+              recipe.mode !== 'transform' &&
+              !(recipe.id === 'flashcards' && parseFlashcards(answerText))
+                ? usingWorkspace
+                  ? checkWorkspaceQuotes(answerText, workspaceDocuments)
+                  : checkQuotes(answerText, page.text)
+                : undefined,
             state: 'done',
             status: undefined,
             strategy: result.strategy,
@@ -834,6 +951,8 @@ export const usePanel = create<PanelState>()((set, get) => {
     conversationId: randomId('c-'),
     historyOpen: false,
     extraTabs: [],
+    documents: [],
+    workspaceActive: false,
 
     init() {
       const cleanups: (() => void)[] = [];
@@ -971,13 +1090,28 @@ export const usePanel = create<PanelState>()((set, get) => {
       const index = items.findIndex((item) => item.id === itemId);
       const answer = items[index];
       if (!answer || get().busy) return;
+      if (
+        answer.workspaceDocumentIds?.some(
+          (id) => !get().documents.some((document) => document.id === id),
+        )
+      ) {
+        get().showToast(t('workspace.sourcesGone'));
+        return;
+      }
       set({ items: items.filter((_, i) => i !== index && i !== index - 1) });
       if (answer.recipeId && answer.recipeId !== 'question') {
         await get().runRecipe(answer.recipeId, {
           selection: answer.selection,
           tabId: answer.fromTabId,
+          workspaceDocumentIds: answer.workspaceDocumentIds,
         });
-      } else if (answer.instruction) await get().ask(answer.instruction);
+      } else if (answer.instruction)
+        await execute(
+          questionRecipe(answer.instruction),
+          answer.instruction,
+          items[index - 1]?.text ?? answer.instruction,
+          { workspaceDocumentIds: answer.workspaceDocumentIds },
+        );
     },
 
     stop() {
@@ -1003,11 +1137,15 @@ export const usePanel = create<PanelState>()((set, get) => {
       const pending = get().setup?.pending;
       set({ setup: null });
       if (!pending) return;
-      if (pending.recipeId === 'question') await get().ask(pending.instruction);
+      if (pending.recipeId === 'question')
+        await execute(questionRecipe(pending.instruction), pending.instruction, pending.label, {
+          workspaceDocumentIds: pending.workspaceDocumentIds,
+        });
       else {
         await get().runRecipe(pending.recipeId, {
           selection: pending.selection,
           tabId: pending.tabId,
+          workspaceDocumentIds: pending.workspaceDocumentIds,
         });
       }
     },
@@ -1059,8 +1197,14 @@ export const usePanel = create<PanelState>()((set, get) => {
     },
 
     async openFile(file) {
+      if (get().workspaceActive) return get().addFiles([file]);
+      if (running || get().fileStatus) return;
       if (!canOpenFile(file)) {
         get().showToast(t('files.unsupported'));
+        return;
+      }
+      if (file.size > MAX_WORKSPACE_FILE_BYTES) {
+        get().showToast(t('workspace.fileTooLarge', { name: file.name }));
         return;
       }
       set({ fileStatus: t('files.reading', { name: file.name }) });
@@ -1079,7 +1223,101 @@ export const usePanel = create<PanelState>()((set, get) => {
       } catch (error) {
         set({ fileStatus: null });
         get().showToast(t('files.failed', { name: file.name, error: errorMessage(error) }));
+      } finally {
+        finishReading();
       }
+    },
+
+    async openFiles(files) {
+      if (files.length === 1 && !get().workspaceActive) return get().openFile(files[0]!);
+      await get().addFiles(files);
+    },
+
+    async addFiles(files) {
+      if (running || get().fileStatus || !files.length) return;
+      if (get().documents.length + files.length > MAX_WORKSPACE_DOCUMENTS) {
+        get().showToast(t('workspace.limit'));
+        return;
+      }
+      const incoming: WorkspaceDocument[] = [];
+      set({ fileStatus: t('workspace.readingFiles') });
+      try {
+        for (const file of files) {
+          if (!canOpenFile(file)) throw new Error(t('files.unsupported'));
+          if (file.size > MAX_WORKSPACE_FILE_BYTES)
+            throw new Error(t('workspace.fileTooLarge', { name: file.name }));
+          set({ fileStatus: t('files.reading', { name: file.name }) });
+          const document = captureDocument(await readFile(file));
+          if (!document.markdown.trim())
+            throw new Error(t('workspace.emptyFile', { name: file.name }));
+          incoming.push(document);
+          if (!workspaceFits(get().documents, incoming)) throw new Error(t('workspace.limit'));
+        }
+        set((state) => ({
+          documents: [...state.documents, ...incoming],
+          workspaceActive: true,
+          file: null,
+        }));
+        void refreshPreview();
+      } catch (error) {
+        get().showToast(errorMessage(error));
+      } finally {
+        finishReading();
+      }
+    },
+
+    async capturePage() {
+      if (running || get().fileStatus) return;
+      set({ fileStatus: t('workspace.capturing') });
+      try {
+        await get().refreshTab();
+        const page = get().tab.page;
+        if (get().tab.status !== 'ready' || !page?.markdown.trim()) {
+          get().showToast(t('toast.allowTab'));
+          return;
+        }
+        const document = captureDocument(page);
+        if (!workspaceFits(get().documents, [document])) {
+          get().showToast(t('workspace.limit'));
+          return;
+        }
+        set((state) => ({
+          documents: [...state.documents, document],
+          workspaceActive: true,
+          file: null,
+        }));
+      } finally {
+        finishReading();
+        void refreshPreview();
+      }
+    },
+
+    toggleDocument(id) {
+      if (running || get().fileStatus) return;
+      set((state) => ({
+        documents: state.documents.map((document) =>
+          document.id === id ? { ...document, enabled: !document.enabled } : document,
+        ),
+      }));
+      void refreshPreview();
+    },
+
+    removeDocument(id) {
+      if (running || get().fileStatus) return;
+      set((state) => ({ documents: state.documents.filter((document) => document.id !== id) }));
+      void refreshPreview();
+    },
+
+    setWorkspaceActive(active) {
+      if (running || get().fileStatus) return;
+      set({ workspaceActive: active, file: null });
+      void refreshPreview();
+    },
+
+    clearWorkspace() {
+      if (running || get().fileStatus) return;
+      set({ documents: [], workspaceActive: false });
+      void refreshPreview();
     },
 
     closeFile() {

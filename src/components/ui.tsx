@@ -140,7 +140,9 @@ export function Dialog({
     <dialog
       ref={ref}
       aria-labelledby={headingId}
-      onClose={onClose}
+      onClose={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
       onClick={(event) => {
         if (event.target === ref.current) onClose();
       }}

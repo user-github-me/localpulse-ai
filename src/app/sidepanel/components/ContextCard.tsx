@@ -8,13 +8,13 @@ import { formatNumber, t } from '../../shared/i18n';
 import { domainOf, panelShortcut } from '../../shared/open';
 import { usePanel } from '../store';
 import { ExtraTabsList, TabsPicker } from './TabsPicker';
+import { WorkspaceButton, WorkspaceSummary } from './Workspace';
+import { FILE_TYPES } from '../documents';
 import {
   requestAllSitesAccess,
   requestOriginAccess,
   requestSiteAccessInBrowser,
 } from '../tab-context';
-
-const FILE_TYPES = '.pdf,.txt,.md,.markdown,.csv,.tsv,.json,.xml,.log,.html,.htm,.srt,.vtt';
 
 /** What the AI will read: the page, the selected text, or a file. */
 export function ContextCard() {
@@ -22,10 +22,13 @@ export function ContextCard() {
   const file = usePanel((state) => state.file);
   const fileStatus = usePanel((state) => state.fileStatus);
   const refreshTab = usePanel((state) => state.refreshTab);
+  const workspaceActive = usePanel((state) => state.workspaceActive);
 
   let body: ReactNode;
   if (fileStatus) {
     body = <Muted busy>{fileStatus}</Muted>;
+  } else if (workspaceActive) {
+    body = <WorkspaceSummary />;
   } else if (file) {
     body = <PageSummary page={file} isFile />;
   } else if (tab.status === 'no-access') {
@@ -53,9 +56,12 @@ export function ContextCard() {
   }
 
   return (
-    <section className="relative border-b border-line bg-surface py-3 pl-4 pr-11">
+    <section className="relative border-b border-line bg-surface py-3 pl-4 pr-20">
       {body}
       <FilePicker />
+      <div className="absolute right-10 top-2.5">
+        <WorkspaceButton />
+      </div>
     </section>
   );
 }
@@ -69,13 +75,17 @@ function Muted({ children, busy = false }: { children: ReactNode; busy?: boolean
 }
 
 function FilePicker() {
-  const openFile = usePanel((state) => state.openFile);
+  const openFiles = usePanel((state) => state.openFiles);
+  const busy = usePanel(
+    (state) => state.busy || state.consent !== null || state.fileStatus !== null,
+  );
   const input = useRef<HTMLInputElement>(null);
   return (
     <>
       <IconButton
         label={t('context.openFile')}
         className="absolute right-2 top-2.5"
+        disabled={busy}
         onClick={() => input.current?.click()}
       >
         <Paperclip className="h-4 w-4" />
@@ -83,11 +93,12 @@ function FilePicker() {
       <input
         ref={input}
         type="file"
+        multiple
         accept={FILE_TYPES}
         className="hidden"
         onChange={(event) => {
-          const chosen = event.target.files?.[0];
-          if (chosen) void openFile(chosen);
+          const chosen = Array.from(event.target.files ?? []);
+          if (chosen.length) void openFiles(chosen);
           event.target.value = '';
         }}
       />

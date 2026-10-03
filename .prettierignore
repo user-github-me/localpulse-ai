@@ -3,3 +3,5 @@ local
 node_modules
 pnpm-lock.yaml
 tests/fixtures/pages
+tools/email-tracker/.agents/
+tools/email-tracker/.claude/

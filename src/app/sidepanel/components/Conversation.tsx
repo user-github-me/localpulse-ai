@@ -2,6 +2,7 @@ import { Check, Copy, Replace, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Markdown } from '@/components/Markdown';
 import { stripPageTags } from '@/core/prompts';
+import { parseFlashcards } from '@/core/study';
 import { IconButton } from '@/components/ui';
 import { t } from '../../shared/i18n';
 import { domainOf, providerName } from '../../shared/open';
@@ -10,6 +11,8 @@ import { usePanel, type ChatItem } from '../store';
 import { HandoffMenu } from './HandoffMenu';
 import { QuoteList } from './QuoteList';
 import { SetupCard } from './SetupCard';
+import { StudyCards } from './StudyCards';
+import { ReadAloud } from './ReadAloud';
 import { toneOf } from './StatusStrip';
 
 export function Conversation() {
@@ -74,13 +77,15 @@ function Question({ item }: { item: ChatItem }) {
       </p>
       {item.context && (
         <p className="mt-0.5 truncate text-[0.74rem] text-muted">
-          {item.context.tabCount
-            ? t('tabs.count', { count: String(item.context.tabCount) })
-            : item.context.source === 'selection'
-              ? t('conversation.selectedTextOn', {
-                  site: domainOf(item.context.url) || item.context.title,
-                })
-              : domainOf(item.context.url) || item.context.title}
+          {item.context.documentCount
+            ? t('workspace.count', { count: String(item.context.documentCount) })
+            : item.context.tabCount
+              ? t('tabs.count', { count: String(item.context.tabCount) })
+              : item.context.source === 'selection'
+                ? t('conversation.selectedTextOn', {
+                    site: domainOf(item.context.url) || item.context.title,
+                  })
+                : domainOf(item.context.url) || item.context.title}
         </p>
       )}
     </div>
@@ -179,6 +184,10 @@ function Answer({ item }: { item: ChatItem }) {
   const [copied, setCopied] = useState(false);
   const streaming = item.state === 'streaming';
   const note = strategyNote(item);
+  const cards =
+    item.state === 'done' && item.recipeId === 'flashcards'
+      ? parseFlashcards(stripPageTags(item.text))
+      : undefined;
 
   return (
     <article className="mt-2.5" aria-busy={streaming}>
@@ -187,7 +196,15 @@ function Answer({ item }: { item: ChatItem }) {
           {item.notice}
         </p>
       )}
-      {item.text ? (
+      {cards ? (
+        <>
+          <StudyCards key={item.text} cards={cards} />
+          <details className="mt-2 text-[0.76rem] text-muted">
+            <summary className="cursor-pointer hover:text-ink">{t('study.original')}</summary>
+            <Markdown text={stripPageTags(item.text)} />
+          </details>
+        </>
+      ) : item.text ? (
         item.context?.editableTabId !== undefined ? (
           // Text that can replace the selection in a field: shown exactly as Replace inserts it.
           <p dir="auto" className="answer whitespace-pre-wrap">
@@ -217,7 +234,7 @@ function Answer({ item }: { item: ChatItem }) {
           <span>{provenance(item)}</span>
         </p>
         {note && <p className="mt-1 text-[0.74rem] text-muted">{note}</p>}
-        {item.quotes && item.quotes.length > 0 && <QuoteList item={item} />}
+        {!cards && item.quotes && item.quotes.length > 0 && <QuoteList item={item} />}
         {!streaming && (
           <div className="-ml-1.5 mt-1 flex flex-wrap items-center gap-0.5">
             {item.text && (
@@ -233,6 +250,9 @@ function Answer({ item }: { item: ChatItem }) {
               >
                 {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
               </IconButton>
+            )}
+            {item.state === 'done' && item.text && !cards && (
+              <ReadAloud key={item.text} text={stripPageTags(item.text)} />
             )}
             <IconButton
               label={t('common.tryAgain')}
@@ -258,6 +278,7 @@ function Answer({ item }: { item: ChatItem }) {
                 instruction={item.instruction}
                 contextUrl={item.context?.url}
                 selection={item.selection}
+                workspaceDocumentIds={item.workspaceDocumentIds}
               />
             )}
           </div>

@@ -1,0 +1,15 @@
+{
+  "name": "localpulse-email-tracker",
+  "version": "1.0.0",
+  "description": "Open-source encrypted image-request timestamps with owner-signed deletion for LocalPulse.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.22.2"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test server.test.mjs"
+  }
+}

@@ -16,6 +16,20 @@ const RECIPE_KEYS: Record<string, string> = {
   rewrite: 'recipes.rewrite',
   proofread: 'recipes.proofread',
   compare: 'recipes.compare',
+  'research-brief': 'recipes.researchBrief',
+  'evidence-gaps': 'recipes.evidenceGaps',
+  'study-guide': 'recipes.studyGuide',
+  flashcards: 'recipes.flashcards',
+  quiz: 'recipes.quiz',
+  glossary: 'recipes.glossary',
+  'decision-brief': 'recipes.decisionBrief',
+  'extract-table': 'recipes.extractTable',
+  'code-review': 'recipes.codeReview',
+  'meeting-notes': 'recipes.meetingNotes',
+  'email-reply': 'recipes.emailReply',
+  timeline: 'recipes.timeline',
+  'argument-map': 'recipes.argumentMap',
+  'discussion-questions': 'recipes.discussionQuestions',
 };
 
 /** A quick action's name: translated for built-in ones, as written for the user's own. */

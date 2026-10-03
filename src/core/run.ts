@@ -54,6 +54,17 @@ export interface TurnResult {
 
 const MAX_REDUCE_ROUNDS = 3;
 
+/** Label every part after splitting at the actual provider budget, including late subsections. */
+function pageChunks(page: PromptPage, maxTokens: number): string[] {
+  if (!page.sourceParts) return chunkText(page.text, maxTokens);
+  return page.sourceParts.flatMap((part) => {
+    const label = `# ${part.title}\n\n`;
+    return chunkText(part.text, Math.max(16, maxTokens - estimateTokens(label))).map(
+      (text) => label + text,
+    );
+  });
+}
+
 /**
  * Answers one turn with one provider, fitting the page into the model's context window:
  * direct when it fits; otherwise summaries in parts, the relevant sections for questions, or
@@ -162,7 +173,7 @@ export async function runTurn(
   switch (input.recipe.mode) {
     case 'qa': {
       const sectionSize = Math.max(200, Math.min(800, Math.floor(available / 4)));
-      const sections = chunkText(page.text, sectionSize);
+      const sections = pageChunks(page, sectionSize);
       const relevant = selectRelevantSections(sections, input.instruction, available);
       const note = `only the ${relevant.indexes.length} of ${relevant.total} parts of the page most relevant to the question`;
       await pipe(provider.stream(ask({ ...page, text: relevant.text, note }), options), callbacks);
@@ -206,7 +217,7 @@ async function mapReduce(
   let partsTotal = 0;
 
   for (let round = 0; round < MAX_REDUCE_ROUNDS && estimateTokens(text) > available; round++) {
-    const chunks = chunkText(text, perChunk);
+    const chunks = round === 0 ? pageChunks(page, perChunk) : chunkText(text, perChunk);
     if (round === 0) partsTotal = chunks.length;
     let started = 0;
     const notes = await mapWithLimit(
@@ -220,7 +231,11 @@ async function mapReduce(
           total: chunks.length,
         });
         const note = `part ${index + 1} of ${chunks.length}`;
-        const instruction = mapInstruction(input.instruction, index + 1, chunks.length);
+        const instruction =
+          mapInstruction(input.instruction, index + 1, chunks.length) +
+          (page.sourceParts
+            ? '\nKeep each Document number and title with the facts taken from it.'
+            : '');
         return collect(
           provider.stream(ask({ ...page, text: chunk, note }, instruction), { ...options, signal }),
         );

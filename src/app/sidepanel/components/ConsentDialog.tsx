@@ -17,14 +17,19 @@ export function ConsentDialog() {
   const what =
     consent?.source === 'selection'
       ? t('consent.whatSelection', consent.words, { words: formatNumber(consent.words) })
-      : consent?.tabCount
-        ? t('consent.whatTabs', consent.words, {
+      : consent?.documentCount
+        ? t('workspace.consentWords', consent.words, {
             words: formatNumber(consent.words),
-            count: String(consent.tabCount),
+            count: String(consent.documentCount),
           })
-        : consent?.source === 'page'
-          ? t('consent.whatPage', consent.words, { words: formatNumber(consent.words) })
-          : t('consent.whatQuestion');
+        : consent?.tabCount
+          ? t('consent.whatTabs', consent.words, {
+              words: formatNumber(consent.words),
+              count: String(consent.tabCount),
+            })
+          : consent?.source === 'page'
+            ? t('consent.whatPage', consent.words, { words: formatNumber(consent.words) })
+            : t('consent.whatQuestion');
 
   return (
     <Dialog

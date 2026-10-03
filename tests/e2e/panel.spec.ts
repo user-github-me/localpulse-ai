@@ -215,6 +215,7 @@ test('reads a PDF file and answers about it', async ({ context, extensionId, art
   const panel = await openPanel(context, extensionId, article);
   await panel
     .locator('input[type="file"]')
+    .first()
     .setInputFiles(join(import.meta.dirname, '../fixtures/files/report.pdf'));
   await expect(panel.getByRole('heading', { name: 'Quarterly report Q3' })).toBeVisible();
   await expect(panel.getByText('PDF, 2 pages')).toBeVisible();

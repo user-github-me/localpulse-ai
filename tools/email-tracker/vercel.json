@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "",
+  "installCommand": "",
+  "rewrites": [{ "source": "/(.*)", "destination": "/api/index" }],
+  "functions": { "api/index.mjs": { "maxDuration": 10 } },
+  "regions": ["iad1"]
+}

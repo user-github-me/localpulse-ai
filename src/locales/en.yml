@@ -2,7 +2,7 @@
 # and translate the values. Keep {placeholders} and $1 as they are. See CONTRIBUTING.md.
 
 extName: LocalPulse AI
-extDescription: Summarize and chat with any page in the side panel using on-device AI first; open source, with no tracking.
+extDescription: Open-source page AI, flashcards and follow-ups with on-device models first and optional encrypted email read counts.
 actionTitle: Open LocalPulse AI
 commandSummarize: Summarize the current page
 
@@ -26,6 +26,21 @@ recipes:
   rewrite: Rewrite
   proofread: Proofread
   compare: Compare
+
+  researchBrief: Research brief
+  evidenceGaps: Evidence and gaps
+  studyGuide: Study guide
+  flashcards: Flashcards
+  quiz: Practice quiz
+  glossary: Glossary
+  decisionBrief: Decision brief
+  extractTable: Extract a table
+  codeReview: Review code
+  meetingNotes: Meeting notes
+  emailReply: Draft an email reply
+  timeline: Timeline
+  argumentMap: Argument map
+  discussionQuestions: Discussion questions
 
 menu:
   root: LocalPulse AI
@@ -105,7 +120,7 @@ context:
   pdfFailed: Couldn't read this PDF. {error}
 
 files:
-  drop: Drop a PDF or text file to ask about it. It stays on this computer.
+  drop: Drop PDFs or text files to read them together. They stay on this computer.
   unsupported: LocalPulse can read PDFs and text files.
   reading: Reading {name}…
   readingPage: Reading {name}, page {page} of {total}…
@@ -250,6 +265,33 @@ history:
   savedLocally: Saved only on this computer.
   deleteAll: Delete all history
 
+  search: Search history
+  searchPlaceholder: Search questions, answers, titles or sites
+  favoritesOnly: Favorites only
+  count: '{count} conversations'
+  loading: Loading history…
+  noMatches: No conversations match your search.
+  favorite: Add to favorites
+  unfavorite: Remove from favorites
+  rename: Rename conversation
+  name: Conversation name
+  cancel: Cancel
+  save: Save name
+  showMore: Show more conversations
+  import: Import backup
+  backup: Back up all as JSON
+  exportResults: Export results as Markdown
+  backupNote: Backups contain questions, answers and page titles and addresses. Keep them somewhere private. Import adds chats without replacing anything or granting cloud permissions.
+  imported: 'Imported {count} conversations.'
+  loadFailed: Couldn't load history. Close History and try again.
+  operationFailed: Couldn't finish that history action. Try again; your existing conversations are kept.
+  importTooLarge: This backup is larger than 25 MB. Split it into smaller backups.
+  importTooMany: A backup can contain at most 1,000 conversations and 20,000 messages.
+  importInvalidFormat: Choose a LocalPulse history JSON backup with version 1.
+  importInvalidData: This backup contains invalid conversation data. No conversations were imported.
+  deleteAllConfirm: Delete every saved conversation from this computer? This cannot be undone. You can make a JSON backup first.
+  confirmDeleteAll: Delete permanently
+
 toast:
   cloudOff: Cloud providers are now off for this page, so nothing more was sent.
   selectFirst: Select the text you want to change first.
@@ -290,7 +332,7 @@ options:
   themeLight: Light
   themeDark: Dark
   aboutVersion: LocalPulse AI {version}. Free and open source under the MIT license.
-  aboutPrivacy: 'LocalPulse has no servers and collects nothing: no analytics, no crash reports, no accounts. Pages you ask about stay on this computer unless you choose a cloud provider, and then they go straight from your browser to that provider.'
+  aboutPrivacy: 'Pages stay on this computer unless you choose a cloud AI provider. There are no analytics or crash reports. Optional email read activity uses a public open-source service you explicitly connect: only public keys and encrypted timestamps, deleted after collection. No email subjects, bodies or recipients. Its public policy discloses hosting metadata.'
   showWelcome: Show the welcome guide again
 
 builtin:
@@ -422,7 +464,7 @@ onboarding:
   readsTitle: LocalPulse reads the page you ask about.
   reads1: When you use LocalPulse on a tab, it reads that page's text so the AI can answer. It doesn't read tabs you don't use it on.
   reads2: The text stays on this computer when the answer comes from on-device AI. If you add a cloud provider with your own API key, LocalPulse asks before sending a page to it, and the page goes straight from your browser to that company.
-  reads3: 'LocalPulse has no servers. It collects nothing: no analytics, no crash reports, no accounts.'
+  reads3: 'No analytics or crash reports. Optional email read activity uses a public open-source service you explicitly connect; it queues only encrypted timestamps and deletes them after collection. Email content never goes there. Hosting providers handle network metadata under their policies.'
   chooseTitle: Choose where answers come from.
   checking: Checking what this browser can run…
   ready: '{model} is ready.'
@@ -447,3 +489,208 @@ onboarding:
   tip2: Select text and right-click to explain, summarize or translate just that part.
   tip3: 'The light at the top of the panel shows where answers are written: green on this device, amber in the cloud.'
   open: Open LocalPulse
+
+actionLibrary:
+  browse: Browse actions
+  title: Action library
+  note: Choose an action for the page, selection or sources you are reading. Pin favorites to the toolbar. These actions use your chosen provider and privacy settings.
+  search: Search actions
+  searchPlaceholder: Search actions and tasks…
+  category: Category
+  all: All actions
+  research: Research
+  learn: Learn
+  work: Work
+  write: Write
+  code: Code
+  custom: Your actions
+  list: Available actions
+  results:
+    1: 1 action found
+    n: $1 actions found
+  run: Run
+  runLabel: Run {label}
+  pin: Pin {label} to quick actions
+  unpin: Unpin {label} from quick actions
+  empty: No matching actions. Try another search or category.
+  saveFailed: Couldn't save this pin. Try again.
+  settingsNote: These actions are also available from Browse actions in the panel. Choose favorites to show as quick actions.
+
+actionDescriptions:
+  summarize: Keep the essential findings, names and numbers in a short summary.
+  keyPoints: Pull out the most important points as a short list.
+  explainCode: Understand the purpose, behavior and risks of code.
+  simplify: Get a plain-language explanation with an everyday example.
+  actionItems: Extract tasks, stated owners and deadlines as a checklist.
+  translate: Translate into your answer language while keeping formatting.
+  explain: Explain selected text and unfamiliar terms.
+  rewrite: Make selected text clearer while keeping its meaning and language.
+  proofread: Fix spelling, grammar and punctuation in selected text.
+  compare: Compare sources, agreements, differences and practical tradeoffs.
+  researchBrief: Turn sources into findings, methods, limitations and implications.
+  evidenceGaps: Examine claims, evidence and unanswered questions in your sources. This does not independently verify facts.
+  studyGuide: Learn with key concepts, examples and review questions with answers.
+  flashcards: Make up to 15 flashcards to study here or export to Anki.
+  quiz: Test understanding with questions and a separate answer key.
+  glossary: Define important terms and abbreviations in a clear table.
+  decisionBrief: Compare options, tradeoffs, unknowns and practical next steps.
+  extractTable: Turn stated facts into a table while preserving dates, units and missing values.
+  codeReview: Find potential code issues, fixes and useful tests without claiming to execute code.
+  meetingNotes: Organize topics, decisions, open questions, owners and deadlines.
+  emailReply: Draft a thoughtful reply with placeholders for missing information.
+  timeline: Put stated events in order and flag unclear or conflicting dates.
+  argumentMap: Trace the thesis, supporting evidence, assumptions and counterarguments.
+  discussionQuestions: Explore the material with comprehension and critical-thinking questions.
+
+workspace:
+  title: Document workspace
+  intro: Read PDFs, text files and captured pages together. Choose the sources to include, then ask questions or compare them.
+  addFiles: Add files
+  addPage: Capture current page
+  sources: Workspace sources
+  empty: Add files or capture the page you are reading to get started.
+  memoryNote: Sources stay in this panel's memory until you clear them or close the panel. Page and file text is never saved in history.
+  use: Read chosen sources
+  usePage: Back to current page
+  clear: Clear workspace
+  remove: Remove {name}
+  count: '{count} documents'
+  chooseSources: Choose at least one source in the document workspace.
+  sourcesGone: The original workspace sources are no longer available. Add them again and start a new question.
+  selectionOnly: This action needs selected text. Switch back to the page and select the text first.
+  readingFiles: Reading files…
+  capturing: Capturing the current page…
+  emptyFile: 'No readable text in {name}. Scanned PDFs need text recognition first.'
+  fileTooLarge: '{name} exceeds the 25 MB file limit.'
+  limit: A workspace holds up to 12 sources and 2 million characters. Remove a source before adding more.
+  quoteSource: 'Source: {name}.'
+  consentWords:
+    1: About 1 word from {count} documents
+    n: About {words} words from {count} documents
+
+study:
+  title: Study flashcards
+  note: Practice from this answer. Card ratings and order stay in this panel session.
+  position: 'Card {current} of {total}'
+  front: Question
+  back: Answer
+  reveal: Reveal answer
+  hide: Hide answer
+  previous: Previous card
+  next: Next card
+  shuffle: Shuffle cards
+  known: I knew it
+  again: Study again
+  progress: '{reviewed} of {total} cards rated · {known} known'
+  complete: Round complete
+  completeNote: 'You knew {known} of {total} cards in this round.'
+  reviewAgain: Review missed cards
+  restart: Start over
+  export: Download for Anki
+  copy: Copy Anki CSV
+  copied: Anki CSV copied
+  copyFailed: Couldn't copy the cards. Download them instead.
+  exportFailed: Couldn't download the cards. Try again.
+  exportNote: 'Import this CSV in Anki as Basic with Front and Back fields. The file sets comma separation and HTML handling; its text is escaped so cards stay plain text. No account or upload is needed.'
+  original: View generated answer
+
+speech:
+  read: Read aloud
+  pause: Pause reading
+  resume: Resume reading
+  stop: Stop reading
+  voice: Local voice
+  localOnly: Uses a voice installed on this device.
+  unavailable: No local voices are available. Install a system voice to read answers aloud.
+  failed: This device could not read the answer aloud.
+  playing: Reading aloud
+  paused: Reading paused
+  truncated: Reading is limited to the first 60,000 characters.
+  voiceNote: Changing the voice restarts the answer.
+
+followups:
+  title: Follow-ups
+  close: Close follow-ups
+  note: Titles, links and due dates stay on this device. No email bodies or recipients are saved.
+  reminders: This board checks due dates while open. Import the calendar file into your calendar app to receive reminders; LocalPulse does not send desktop notifications.
+  new: New follow-up
+  addPage: Add current page
+  tracking: Image activity tracking
+  search: Search follow-ups
+  searchPlaceholder: Search titles and sites…
+  filter: Show follow-ups
+  due: Due
+  upcoming: Upcoming
+  done: Done
+  empty: No follow-ups in this view.
+  loading: Loading follow-ups…
+  count: '{count} follow-ups'
+  name: Follow-up title
+  dueDate: Due date and time
+  source: Source page
+  noSource: No source page
+  formNote: Review the title and due time before saving. Time is shown in this computer’s timezone.
+  addTitle: Add a follow-up
+  editTitle: Edit follow-up
+  save: Save follow-up
+  openSource: Open source page
+  complete: Mark done
+  reopen: Reopen follow-up
+  snooze: Snooze one day
+  edit: Edit follow-up
+  delete: Delete follow-up
+  export: Export open tasks to calendar
+  clear: Clear all follow-ups
+  clearConfirm: Delete all follow-ups from this device? This cannot be undone.
+  confirmClear: Delete all follow-ups
+  saved: Follow-up saved.
+  operationFailed: Couldn't update follow-ups. Try again.
+  invalidTitle: Enter a title with up to 160 characters.
+  invalidDue: Choose a valid local date and time.
+  invalidUrl: Use an HTTP or HTTPS page address.
+  limit: This board holds up to 1,000 follow-ups. Delete finished tasks to add more.
+  missing: This follow-up is no longer available.
+  exported: Calendar file downloaded. Import it into your calendar app to set reminders.
+
+tracking:
+  serverUrl: Tracking server URL
+  connect: Connect server
+  disconnect: Disconnect
+  copyRich: Copy for email
+  copyHtml: Copy HTML code
+  viewHtml: View HTML code
+  htmlCopied: HTML code copied. Plain-text pasting does not install the tracking image.
+  invalidUrl: Use a public HTTPS URL without credentials, query or fragment. HTTP is allowed only on localhost for development.
+
+readTracking:
+  title: Private email read activity
+  note: An optional tracking image reports estimated reads. LocalPulse never sends email content, subjects, recipients or destination links to this service.
+  privacy: Each image-request timestamp is encrypted for your extension. Your private keys stay here. Collected events are deleted after your extension saves and acknowledges them. Uncollected encrypted events and image links have no time-based expiry.
+  transparency: View this server’s public source and data policy
+  connected: Encrypted read service connected.
+  create: Create private tracking image
+  created: Tracking image created. Back up your keys before sending it.
+  snippet: Private tracking image
+  image: Image
+  paste: Copy for email and paste into a rich-text email composer. Some mail apps strip pasted images; test with your own inbox. Disclose the tracking to recipients. This panel never loads the image. Creating and opening previews elsewhere can generate an event.
+  copied: Tracking image copied. Paste into your email composer.
+  results: Local read results
+  collect: Collect and delete server events
+  collected: Read events saved on this device and acknowledged for server deletion.
+  reliability: Image requests can be preloaded, cached, blocked or generated by scanners. Counts and times estimate activity; they cannot prove human reads or delivery. Up to 1,000 encrypted events wait per image; a full queue can miss activity. Collect again to fetch another batch.
+  count: '{count} image requests'
+  times: View latest 100 request times
+  remove: Remove tracking image
+  removeNote: Delete queued events and local results for this image? Images already sent remain valid and can generate new events. Export an encrypted backup first if you may need access again.
+  backup: Encrypted key and result backup
+  backupNote: Your encryption and signing keys, image capabilities and read times are stored only in this browser. Export a password-encrypted backup before uninstalling or clearing browser data. Losing the keys loses access. Import requires a browser without existing tracking images.
+  password: Backup password (at least 12 characters)
+  export: Export encrypted backup
+  import: Import encrypted backup
+  backedUp: Encrypted backup downloaded. Keep its password separately.
+  imported: Encrypted tracking backup restored.
+  passwordError: Use a backup password with at least 12 characters.
+  backupExists: This browser already has tracking images. Import into a clean browser profile to preserve both sets.
+  limit: This browser holds up to 100 images per server and 20,000 read times per image. Export your results before removing old images.
+  unavailable: This server’s encrypted event queue is not configured yet. View its public status or connect another deployment.
+  failed: Couldn't complete the operation. Check the server, permissions or backup password. Failed event acknowledgement is retried before collecting new events.

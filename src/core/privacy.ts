@@ -363,10 +363,14 @@ export function decodeAddress(url: string): string {
  * Redacts a page for a cloud request: its text, and its title and address too, since those can
  * hold an email address (webmail titles, links with an address in them).
  */
-export function redactPage<T extends { title: string; url: string; text: string }>(
-  page: T,
-  redactor = new Redactor(),
-): { page: T; count: number } {
+export function redactPage<
+  T extends {
+    title: string;
+    url: string;
+    text: string;
+    sourceParts?: { title: string; text: string }[];
+  },
+>(page: T, redactor = new Redactor()): { page: T; count: number } {
   const before = redactor.count;
   const redacted = {
     ...page,
@@ -374,5 +378,12 @@ export function redactPage<T extends { title: string; url: string; text: string 
     url: redactor.redact(decodeAddress(page.url)),
     text: redactor.redact(page.text),
   };
-  return { page: redacted, count: redactor.count - before };
+  const count = redactor.count - before;
+  // These are the same text in a second representation for retrieval, not extra disclosures.
+  if (page.sourceParts)
+    redacted.sourceParts = page.sourceParts.map((part) => ({
+      title: redactor.redact(part.title),
+      text: redactor.redact(part.text),
+    }));
+  return { page: redacted, count };
 }

@@ -11,8 +11,6 @@ export function QuoteList({ item }: { item: ChatItem }) {
   const [open, setOpen] = useState(false);
   const found = quotes.filter((quote) => quote.found).length;
   const missing = quotes.length - found;
-  const onPage =
-    tab.status === 'ready' && tab.page?.url === item.context?.url && tab.tabId !== undefined;
 
   return (
     <div className="mt-1 text-[0.74rem]">
@@ -39,21 +37,29 @@ export function QuoteList({ item }: { item: ChatItem }) {
                 <span className="font-serif text-[0.8rem] italic text-ink/85">“{quote.text}”</span>
                 <span className="block text-muted">
                   {quote.found ? t('quotes.found') : t('quotes.notFound')}{' '}
-                  {quote.found && onPage && (
-                    <button
-                      type="button"
-                      className="font-medium text-local underline underline-offset-2"
-                      onClick={async () => {
-                        const shown = await showQuoteInPage(
-                          tab.tabId as number,
-                          quote.onPage ? [quote.onPage, quote.text] : [quote.text],
-                        );
-                        if (!shown) showToast(t('quotes.showFailed'));
-                      }}
-                    >
-                      {t('quotes.show')}
-                    </button>
+                  {'sourceTitle' in quote && quote.sourceTitle && (
+                    <span>{t('workspace.quoteSource', { name: quote.sourceTitle })} </span>
                   )}
+                  {quote.found &&
+                    tab.status === 'ready' &&
+                    tab.tabId !== undefined &&
+                    tab.page?.url ===
+                      ('sourceUrl' in quote ? quote.sourceUrl : item.context?.url) &&
+                    !item.context?.tabCount && (
+                      <button
+                        type="button"
+                        className="font-medium text-local underline underline-offset-2"
+                        onClick={async () => {
+                          const shown = await showQuoteInPage(
+                            tab.tabId as number,
+                            quote.onPage ? [quote.onPage, quote.text] : [quote.text],
+                          );
+                          if (!shown) showToast(t('quotes.showFailed'));
+                        }}
+                      >
+                        {t('quotes.show')}
+                      </button>
+                    )}
                 </span>
               </span>
             </li>

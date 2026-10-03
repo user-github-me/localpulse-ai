@@ -4,6 +4,7 @@ import { HANDOFF_TARGETS, handOff, type HandoffInput } from '@/providers/handoff
 import { t } from '../../shared/i18n';
 import { isMac } from '../../shared/open';
 import { usePanel, type SelectionSource } from '../store';
+import { workspacePrompt } from '@/core/workspace';
 
 /**
  * Builds the hand-off input: the text chosen from the context menu, or else the current tab, if
@@ -13,12 +14,30 @@ function handoffInput(
   instruction: string,
   contextUrl?: string,
   chosen?: SelectionSource,
+  workspaceDocumentIds?: string[],
 ): HandoffInput {
   if (chosen) {
     const url = chosen.url ?? contextUrl ?? '';
     return { instruction, page: { title: url, url, text: chosen.text, source: 'selection' } };
   }
-  const { tab, settings } = usePanel.getState();
+  const { tab, settings, file, documents } = usePanel.getState();
+  if (workspaceDocumentIds) {
+    const chosen = workspaceDocumentIds.flatMap((id) => {
+      const document = documents.find((document) => document.id === id);
+      return document ? [{ ...document, enabled: true }] : [];
+    });
+    // Never substitute a different reading set for an answer whose original sources are gone.
+    return {
+      instruction,
+      page: chosen.length === workspaceDocumentIds.length ? workspacePrompt(chosen) : undefined,
+    };
+  }
+  if (file && file.url === contextUrl) {
+    return {
+      instruction,
+      page: { title: file.title, url: file.url, text: file.markdown, source: 'page' },
+    };
+  }
   const page = tab.status === 'ready' ? tab.page : undefined;
   if (!page || (contextUrl && page.url !== contextUrl)) {
     return {
@@ -45,10 +64,12 @@ export function HandoffButtons({
   instruction,
   contextUrl,
   selection,
+  workspaceDocumentIds,
 }: {
   instruction: string;
   contextUrl?: string;
   selection?: SelectionSource;
+  workspaceDocumentIds?: string[];
 }) {
   const showToast = usePanel((state) => state.showToast);
   const [includeText, setIncludeText] = useState(true);
@@ -56,7 +77,7 @@ export function HandoffButtons({
   const go = async (targetId: string) => {
     const target = HANDOFF_TARGETS.find((item) => item.id === targetId);
     if (!target) return;
-    const input = handoffInput(instruction, contextUrl, selection);
+    const input = handoffInput(instruction, contextUrl, selection, workspaceDocumentIds);
     const hasText = Boolean(input.page?.text);
     const { copied } = await handOff(target, input, includeText && hasText ? 'content' : 'link');
     const paste = isMac() ? '⌘V' : 'Ctrl+V';
@@ -103,10 +124,12 @@ export function HandoffMenu({
   instruction,
   contextUrl,
   selection,
+  workspaceDocumentIds,
 }: {
   instruction: string;
   contextUrl?: string;
   selection?: SelectionSource;
+  workspaceDocumentIds?: string[];
 }) {
   const [open, setOpen] = useState(false);
   const id = useId();
@@ -129,7 +152,12 @@ export function HandoffMenu({
         >
           <p className="text-[0.8rem] font-medium">{t('handoff.menuTitle')}</p>
           <p className="mt-0.5 text-[0.75rem] text-muted">{t('handoff.menuBody')}</p>
-          <HandoffButtons instruction={instruction} contextUrl={contextUrl} selection={selection} />
+          <HandoffButtons
+            instruction={instruction}
+            contextUrl={contextUrl}
+            selection={selection}
+            workspaceDocumentIds={workspaceDocumentIds}
+          />
         </div>
       )}
     </>

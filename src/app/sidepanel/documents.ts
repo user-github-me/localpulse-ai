@@ -62,6 +62,7 @@ export async function readPdfFromUrl(
 }
 
 const TEXT_FILE = /\.(txt|md|markdown|csv|tsv|json|xml|log|html?|srt|vtt)$/i;
+export const FILE_TYPES = '.pdf,.txt,.md,.markdown,.csv,.tsv,.json,.xml,.log,.html,.htm,.srt,.vtt';
 
 export function canOpenFile(file: File): boolean {
   return (

@@ -22,6 +22,7 @@ server, which Chrome doesn't allow). To try on-device AI, run `corepack pnpm bui
 
 | Command                                 | What it does                                                  |
 | --------------------------------------- | ------------------------------------------------------------- |
+| `corepack pnpm test:tracker`            | Encrypted read service tests (native Node)                    |
 | `corepack pnpm test`                    | Unit tests (Vitest)                                           |
 | `corepack pnpm test:e2e`                | Builds a test version and runs the browser tests (Playwright) |
 | `corepack pnpm lint` / `compile`        | ESLint / TypeScript                                           |
@@ -95,6 +96,10 @@ test to `tests/unit/extractor.test.ts`.
 
 - **Privacy is the product.** Nothing may send data anywhere without the user choosing a provider
   and agreeing. No analytics, no crash reporting, no remote configuration.
+- **Email read service:** only public keys and cryptographic event fields may enter the API.
+  Never add email subjects, bodies, recipient addresses or destination links. Encrypt timestamps
+  before storage, save locally before signed deletion, and maintain the public deployment disclosure.
+  See [the service policy](tools/email-tracker/README.md).
 - **No remote code.** All JavaScript and WebAssembly ships in the package. Stores reject
   extensions that load code at runtime.
 - **Keep permissions minimal.** New permissions need a reason in the pull request, and should be

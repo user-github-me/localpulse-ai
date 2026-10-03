@@ -1,4 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
+import type { HiddenValue } from '@/core/privacy';
+import { parseHistoryBackup } from './history-backup';
 
 /** A chat turn as stored. Page content is not stored, only questions, answers and page titles. */
 export interface StoredItem {
@@ -18,6 +20,10 @@ export interface StoredItem {
   partsUsed?: number;
   partsTotal?: number;
   redactions?: number;
+  /** Locally recorded provenance; portable imports never inherit this trust. */
+  sources?: string[];
+  providerKey?: string;
+  hidden?: HiddenValue[];
 }
 
 export interface Conversation {
@@ -27,6 +33,9 @@ export interface Conversation {
   createdAt: number;
   updatedAt: number;
   items: StoredItem[];
+  favorite?: boolean;
+  /** Keeps a title chosen by the user when another answer is saved. */
+  renamed?: boolean;
 }
 
 /** Chat history in IndexedDB, only on this device. */
@@ -47,7 +56,76 @@ export async function saveConversation(conversation: Conversation): Promise<void
 }
 
 export async function listConversations(limit = 100): Promise<Conversation[]> {
-  return db().conversations.orderBy('updatedAt').reverse().limit(limit).toArray();
+  const collection = db().conversations.orderBy('updatedAt').reverse();
+  // IndexedDB's getAll count is unsigned 32-bit; an unlimited export must omit the count.
+  return limit >= 0xffff_ffff ? collection.toArray() : collection.limit(limit).toArray();
+}
+
+/** Searches every saved question, answer, title and address, before applying pagination. */
+export async function searchConversations({
+  query = '',
+  favoritesOnly = false,
+  offset = 0,
+  limit = 50,
+}: {
+  query?: string;
+  favoritesOnly?: boolean;
+  offset?: number;
+  limit?: number;
+} = {}): Promise<{ conversations: Conversation[]; total: number }> {
+  const terms = query.toLocaleLowerCase().trim().split(/\s+/u).filter(Boolean);
+  const matches = await db()
+    .conversations.orderBy('updatedAt')
+    .reverse()
+    .filter((conversation) => {
+      if (favoritesOnly && !conversation.favorite) return false;
+      if (!terms.length) return true;
+      const text = [
+        conversation.title,
+        conversation.url,
+        ...conversation.items.flatMap((item) => [
+          item.text,
+          item.actionLabel,
+          item.context?.title,
+          item.context?.url,
+          item.providerLabel,
+        ]),
+      ]
+        .join('\n')
+        .toLocaleLowerCase();
+      return terms.every((term) => text.includes(term));
+    })
+    .toArray();
+  const start = Math.max(0, Math.trunc(offset));
+  return {
+    conversations: matches.slice(start, start + Math.max(0, Math.trunc(limit))),
+    total: matches.length,
+  };
+}
+
+/** Updates list metadata without rewriting turns or their privacy provenance. */
+export async function updateConversationMetadata(
+  id: string,
+  changes: { title?: string; favorite?: boolean },
+): Promise<void> {
+  const patch: Partial<Conversation> = {};
+  if (changes.title !== undefined) {
+    const title = changes.title.trim();
+    if (!title || title.length > 140) throw new Error('Invalid conversation title');
+    patch.title = title;
+    patch.renamed = true;
+  }
+  if (changes.favorite !== undefined) patch.favorite = changes.favorite;
+  await db().conversations.update(id, patch);
+}
+
+/** All-or-nothing import with newly generated ids: no existing conversation can be replaced. */
+export async function importHistoryBackup(json: string): Promise<number> {
+  const conversations = parseHistoryBackup(json);
+  await db().transaction('rw', db().conversations, async () => {
+    await db().conversations.bulkAdd(conversations);
+  });
+  return conversations.length;
 }
 
 export async function getConversation(id: string): Promise<Conversation | undefined> {

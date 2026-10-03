@@ -2,6 +2,9 @@ import type { Privacy, SummaryType } from '@/providers/types';
 import builtinRecipes from '@/recipes/builtin.json';
 import { languageName } from './prompts';
 
+export const RECIPE_CATEGORIES = ['research', 'learn', 'work', 'write', 'code', 'custom'] as const;
+export type RecipeCategory = (typeof RECIPE_CATEGORIES)[number];
+
 /**
  * A quick action. Built-in ones and user recipes share this format, so contributors can add one
  * without code.
@@ -11,6 +14,8 @@ export interface Recipe {
   label: string;
   /** Icon name from lucide (kebab-case). */
   icon?: string;
+  /** Library group. User recipes always appear under "custom". */
+  category?: RecipeCategory;
   /** What the recipe reads. "selection" falls back to the page when nothing is selected. */
   input: 'page' | 'selection' | 'none';
   /**
@@ -32,6 +37,40 @@ export const BUILTIN_RECIPES: readonly Recipe[] = builtinRecipes as Recipe[];
 
 export function recipeById(id: string, custom: readonly Recipe[] = []): Recipe | undefined {
   return [...BUILTIN_RECIPES, ...custom].find((recipe) => recipe.id === id);
+}
+
+/** Built-ins followed by user actions, with one action per id (built-ins take precedence). */
+export function recipeLibrary(custom: readonly Recipe[] = []): Recipe[] {
+  const seen = new Set<string>();
+  return [...BUILTIN_RECIPES, ...custom].filter((recipe) => {
+    if (seen.has(recipe.id)) return false;
+    seen.add(recipe.id);
+    return true;
+  });
+}
+
+export function recipeCategory(recipe: Recipe): RecipeCategory {
+  return recipe.custom ? 'custom' : (recipe.category ?? 'research');
+}
+
+/** Search can include translated labels and descriptions supplied by the UI. */
+export function filterRecipes(
+  recipes: readonly Recipe[],
+  query: string,
+  category?: RecipeCategory,
+  searchText: (recipe: Recipe) => string = (recipe) => `${recipe.label} ${recipe.prompt}`,
+): Recipe[] {
+  const words = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  return recipes.filter(
+    (recipe) =>
+      (!category || recipeCategory(recipe) === category) &&
+      words.every((word) => searchText(recipe).toLocaleLowerCase().includes(word)),
+  );
+}
+
+/** Toggling a pin preserves toolbar order and removes duplicate copies of an unpinned id. */
+export function toggleQuickAction(ids: readonly string[], id: string): string[] {
+  return ids.includes(id) ? ids.filter((item) => item !== id) : [...ids, id];
 }
 
 /** A free-form question behaves like a recipe that picks the relevant sections of long pages. */

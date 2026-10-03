@@ -6,6 +6,8 @@ import { ConsentDialog } from './components/ConsentDialog';
 import { ContextCard } from './components/ContextCard';
 import { Conversation } from './components/Conversation';
 import { HistoryView } from './components/HistoryView';
+import { FollowupsView } from './components/FollowupsView';
+import { EmailTracking } from './components/EmailTracking';
 import { StatusStrip } from './components/StatusStrip';
 import { t } from '../shared/i18n';
 import { usePanel } from './store';
@@ -17,8 +19,10 @@ export function SidePanel() {
   const theme = usePanel((state) => state.settings?.theme);
   const toast = usePanel((state) => state.toast);
   const historyOpen = usePanel((state) => state.historyOpen);
-  const openFile = usePanel((state) => state.openFile);
+  const openFiles = usePanel((state) => state.openFiles);
   const [dragging, setDragging] = useState(false);
+  const [followupsOpen, setFollowupsOpen] = useState(false);
+  const [trackingOpen, setTrackingOpen] = useState(false);
 
   useEffect(() => init(), [init]);
   useEffect(() => (theme ? applyTheme(theme) : undefined), [theme]);
@@ -38,12 +42,24 @@ export function SidePanel() {
         if (!hasFiles(event)) return;
         event.preventDefault();
         setDragging(false);
-        const file = event.dataTransfer.files[0];
-        if (file) void openFile(file);
+        const files = Array.from(event.dataTransfer.files);
+        if (files.length) void openFiles(files);
       }}
     >
-      <StatusStrip />
-      {historyOpen ? (
+      <StatusStrip
+        followupsOpen={followupsOpen}
+        onFollowups={() => {
+          usePanel.getState().setHistoryOpen(false);
+          setFollowupsOpen((open) => !open);
+        }}
+        onHistory={() => setFollowupsOpen(false)}
+      />
+      {followupsOpen ? (
+        <FollowupsView
+          onClose={() => setFollowupsOpen(false)}
+          onTracking={() => setTrackingOpen(true)}
+        />
+      ) : historyOpen ? (
         <HistoryView />
       ) : (
         <>
@@ -54,6 +70,7 @@ export function SidePanel() {
         </>
       )}
       <ConsentDialog />
+      {trackingOpen && <EmailTracking onClose={() => setTrackingOpen(false)} />}
       {dragging && (
         <div className="pointer-events-none absolute inset-2 z-40 grid place-items-center rounded-[14px] border-2 border-dashed border-local bg-paper/90">
           <p className="max-w-[24ch] text-center text-sm font-medium text-local">

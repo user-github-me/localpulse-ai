@@ -6,12 +6,13 @@ import { usePanel } from '../store';
 export function Composer() {
   const [text, setText] = useState('');
   const busy = usePanel((state) => state.busy);
+  const waiting = usePanel((state) => state.fileStatus !== null || state.consent !== null);
   const ask = usePanel((state) => state.ask);
   const stop = usePanel((state) => state.stop);
   const hasPage = usePanel((state) => state.tab.status === 'ready');
 
   const submit = () => {
-    if (!text.trim() || busy) return;
+    if (!text.trim() || busy || waiting) return;
     void ask(text);
     setText('');
   };
@@ -55,7 +56,7 @@ export function Composer() {
             type="submit"
             aria-label={t('composer.send')}
             title={t('composer.send')}
-            disabled={!text.trim()}
+            disabled={!text.trim() || waiting}
             className="inline-flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-local text-white transition-opacity disabled:opacity-35 dark:text-paper"
           >
             <ArrowUp className="h-4 w-4" />

@@ -9,7 +9,8 @@
     "summary": {
       "type": "tldr",
       "length": "medium"
-    }
+    },
+    "category": "research"
   },
   {
     "id": "key-points",
@@ -21,7 +22,8 @@
     "summary": {
       "type": "key-points",
       "length": "medium"
-    }
+    },
+    "category": "research"
   },
   {
     "id": "explain-code",
@@ -29,7 +31,8 @@
     "icon": "code",
     "input": "page",
     "mode": "reduce",
-    "prompt": "Explain what the code does: its purpose, how it works step by step, and anything surprising or risky. Quote short snippets when it helps."
+    "prompt": "Explain what the code does: its purpose, how it works step by step, and anything surprising or risky. Quote short snippets when it helps.",
+    "category": "code"
   },
   {
     "id": "simplify",
@@ -37,7 +40,8 @@
     "icon": "baby",
     "input": "page",
     "mode": "reduce",
-    "prompt": "Explain this in simple words for someone new to the topic. Use short sentences and one everyday example."
+    "prompt": "Explain this in simple words for someone new to the topic. Use short sentences and one everyday example.",
+    "category": "learn"
   },
   {
     "id": "action-items",
@@ -45,7 +49,8 @@
     "icon": "list-checks",
     "input": "page",
     "mode": "reduce",
-    "prompt": "List every action item or task as a Markdown checklist (- [ ] …). Include who is responsible and the deadline when stated. If there are none, say so."
+    "prompt": "List every action item or task as a Markdown checklist (- [ ] …). Include who is responsible and the deadline when stated. If there are none, say so.",
+    "category": "work"
   },
   {
     "id": "translate",
@@ -53,7 +58,8 @@
     "icon": "languages",
     "input": "page",
     "mode": "transform",
-    "prompt": "Translate this into {{language}}. Keep the formatting. Reply with only the translation."
+    "prompt": "Translate this into {{language}}. Keep the formatting. Reply with only the translation.",
+    "category": "write"
   },
   {
     "id": "explain",
@@ -61,7 +67,8 @@
     "icon": "lightbulb",
     "input": "selection",
     "mode": "reduce",
-    "prompt": "Explain this clearly: what it means, why it matters, and any terms a newcomer wouldn't know."
+    "prompt": "Explain this clearly: what it means, why it matters, and any terms a newcomer wouldn't know.",
+    "category": "learn"
   },
   {
     "id": "rewrite",
@@ -69,7 +76,8 @@
     "icon": "pen-line",
     "input": "selection",
     "mode": "transform",
-    "prompt": "Rewrite this to be clearer and more concise. Keep the meaning, the language and the formatting. Reply with only the rewritten text."
+    "prompt": "Rewrite this to be clearer and more concise. Keep the meaning, the language and the formatting. Reply with only the rewritten text.",
+    "category": "write"
   },
   {
     "id": "proofread",
@@ -77,7 +85,8 @@
     "icon": "spell-check",
     "input": "selection",
     "mode": "transform",
-    "prompt": "Fix spelling, grammar and punctuation in this text. Keep the wording, meaning, language and formatting otherwise unchanged. Reply with only the corrected text."
+    "prompt": "Fix spelling, grammar and punctuation in this text. Keep the wording, meaning, language and formatting otherwise unchanged. Reply with only the corrected text.",
+    "category": "write"
   },
   {
     "id": "compare",
@@ -85,6 +94,133 @@
     "icon": "columns",
     "input": "page",
     "mode": "reduce",
-    "prompt": "Compare these pages: what they agree on, where they differ, and which suits what need. Use a table if it helps."
+    "prompt": "Compare these pages: what they agree on, where they differ, and which suits what need. Use a table if it helps.",
+    "category": "research"
+  },
+  {
+    "id": "research-brief",
+    "label": "Research brief",
+    "icon": "book-open",
+    "category": "research",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Write a research brief grounded in the supplied material: the main question, findings, methods or sources, limitations, and practical implications. Keep important numbers and qualify uncertainty. Distinguish what the source states from your interpretation; name the source for each key finding when several are supplied."
+  },
+  {
+    "id": "evidence-gaps",
+    "label": "Evidence and gaps",
+    "icon": "search",
+    "category": "research",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Analyze claims and supporting evidence in the supplied material. Use a Markdown table with Claim, Evidence stated, Source, and Gaps or questions. Distinguish evidence from opinion and correlation from causation. Then list missing information and useful follow-up questions. This is analysis of the supplied sources, not independent fact verification; do not claim to have checked external facts."
+  },
+  {
+    "id": "study-guide",
+    "label": "Study guide",
+    "icon": "book-open",
+    "category": "learn",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Create a study guide from the supplied material: learning goals, key concepts with plain-language explanations, worked examples when supported, common misunderstandings, and five review questions with answers in a separate section. Organize from basic to advanced. Do not invent examples that could be mistaken for source facts."
+  },
+  {
+    "id": "flashcards",
+    "label": "Flashcards",
+    "icon": "layers",
+    "category": "learn",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Create up to 15 flashcards from the supplied material. Ask one clear question per card and give a concise, accurate answer. Cover definitions, relationships and important applications. Avoid duplicate cards and unsupported facts. Write both sides in {{language}}. Reply only with a complete JSON object inside a json code fence, in this exact shape: {\"cards\":[{\"front\":\"Question text\",\"back\":\"Answer text\"}]}. Use the keys cards, front and back exactly as shown. Front and back must be nonempty plain-text strings, without Markdown or HTML; encode quotes and line breaks correctly as JSON. Include no extra keys, introduction or explanation. If the material cannot support even one card, reply in plain language explaining that instead."
+  },
+  {
+    "id": "quiz",
+    "label": "Practice quiz",
+    "icon": "circle-help",
+    "category": "learn",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Create an eight-question practice quiz grounded in the supplied material, with a mix of multiple-choice and short-answer questions. Give four plausible options for each multiple-choice question and only one correct answer. Put the answer key and brief explanations in a separate final section so the learner can try first. Avoid questions the material cannot answer."
+  },
+  {
+    "id": "glossary",
+    "label": "Glossary",
+    "icon": "book-open",
+    "category": "learn",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Extract the important terms and abbreviations in the supplied material. Create a Markdown table with Term, Plain-language meaning, and Context or example from the material. Expand abbreviations only when their meanings are stated or unambiguous; otherwise mark them as unclear. Keep definitions short and group closely related terms."
+  },
+  {
+    "id": "decision-brief",
+    "label": "Decision brief",
+    "icon": "scale",
+    "category": "work",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Turn the supplied material into a decision brief: decision to make, options, comparison table of benefits and tradeoffs, costs or constraints when stated, uncertainties, and next steps. Offer a conditional recommendation based on explicit criteria. Identify missing information instead of inventing prices, scores or facts. Name sources when comparing several."
+  },
+  {
+    "id": "extract-table",
+    "label": "Extract a table",
+    "icon": "table",
+    "category": "work",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Extract the structured facts in the supplied material into a useful Markdown table. Choose columns that fit the data, retain exact names, quantities, units and dates, and include a Source column when several sources are present. Use Not stated for missing values. Do not estimate or fabricate rows. If there is no structured data, say so. Briefly note any ambiguity or incomplete coverage."
+  },
+  {
+    "id": "code-review",
+    "label": "Review code",
+    "icon": "code",
+    "category": "code",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Review the supplied code for concrete correctness, security, performance and maintainability issues. For each finding give severity, the relevant file or snippet when available, why it matters, and a practical fix. Separate confirmed defects from concerns that need more context. Do not claim to have executed code or tests. Finish with targeted tests a developer could run."
+  },
+  {
+    "id": "meeting-notes",
+    "label": "Meeting notes",
+    "icon": "list-checks",
+    "category": "work",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Organize this transcript or rough notes into concise meeting notes: topics discussed, decisions actually made, open questions, and an action-item Markdown table with Task, Owner, and Due date. Mark unstated owners and dates as Not stated. Separate suggestions from commitments. Do not invent attendees, decisions or deadlines."
+  },
+  {
+    "id": "email-reply",
+    "label": "Draft an email reply",
+    "icon": "mail",
+    "category": "write",
+    "input": "selection",
+    "mode": "reduce",
+    "prompt": "Draft a concise, thoughtful reply to this email or message in {{language}}. Address its main questions, use a professional friendly tone, and preserve important context. Do not invent commitments, dates, personal details or answers that are not supplied. Use bracketed placeholders for information the sender must fill in. Reply with only the editable email draft."
+  },
+  {
+    "id": "timeline",
+    "label": "Timeline",
+    "icon": "clock",
+    "category": "research",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Build a chronological timeline of events stated in the supplied material as a Markdown table with Date or period, Event, and Source. Preserve exact dates and distinguish events from predictions or plans. Put undated events in a separate section rather than guessing their order. Note conflicting dates when sources disagree."
+  },
+  {
+    "id": "argument-map",
+    "label": "Argument map",
+    "icon": "git-branch",
+    "category": "research",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Map the argument in the supplied material: central thesis, supporting claims and evidence, assumptions, counterarguments, and conclusions. Use a clear nested outline and label source statements separately from your interpretation. Highlight unsupported leaps and explain what evidence would address them. Analyze only the supplied material; do not claim external verification."
+  },
+  {
+    "id": "discussion-questions",
+    "label": "Discussion questions",
+    "icon": "messages-square",
+    "category": "learn",
+    "input": "page",
+    "mode": "reduce",
+    "prompt": "Write ten thoughtful discussion questions based on the supplied material, progressing from comprehension to application and critical analysis. Briefly explain what each question explores and identify the relevant concept or passage. Invite comparison of viewpoints where appropriate. Keep questions answerable from the material or explicitly label them as open research questions."
   }
 ]

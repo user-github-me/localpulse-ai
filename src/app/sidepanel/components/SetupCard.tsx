@@ -93,6 +93,7 @@ export function SetupCard() {
             instruction={setup.pending.instruction}
             contextUrl={setup.pending.contextUrl}
             selection={setup.pending.selection}
+            workspaceDocumentIds={setup.pending.workspaceDocumentIds}
           />
         </div>
       </div>

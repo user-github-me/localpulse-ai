@@ -1,6 +1,6 @@
 {
   "name": "localpulse-ai",
-  "description": "Privacy-first, open-source AI copilot in the browser side panel. On-device AI first; no servers, no tracking.",
+  "description": "Privacy-first, open-source browser copilot with on-device AI, local study tools, follow-ups and optional encrypted email read activity.",
   "version": "1.0.1",
   "private": true,
   "type": "module",
@@ -21,11 +21,12 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
+    "test": "vitest run && node --test tools/email-tracker/server.test.mjs",
+    "test:tracker": "node --test tools/email-tracker/server.test.mjs",
     "test:watch": "vitest",
     "test:e2e": "wxt build --mode e2e && playwright test",
     "icons": "node scripts/generate-icons.mjs",
-    "check": "tsc --noEmit && eslint . && vitest run && wxt build --mode e2e && playwright test",
+    "check": "tsc --noEmit && eslint . && vitest run && node --test tools/email-tracker/server.test.mjs && wxt build --mode e2e && playwright test",
     "postinstall": "wxt prepare",
     "webllm-libs": "node scripts/fetch-webllm-libs.mjs"
   },

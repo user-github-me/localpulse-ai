@@ -1,4 +1,4 @@
-import { ChevronDown, History, Settings as SettingsIcon, SquarePen } from 'lucide-react';
+import { Bell, ChevronDown, History, Settings as SettingsIcon, SquarePen } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { IconButton } from '@/components/ui';
 import type { Privacy } from '@/providers/types';
@@ -13,7 +13,15 @@ export function toneOf(privacy: Privacy | undefined): string {
 }
 
 /** The top strip: where answers run, with the pulse lamp. */
-export function StatusStrip() {
+export function StatusStrip({
+  followupsOpen = false,
+  onFollowups,
+  onHistory,
+}: {
+  followupsOpen?: boolean;
+  onFollowups?: () => void;
+  onHistory?: () => void;
+}) {
   const preview = usePanel((state) => state.preview);
   const busy = usePanel((state) => state.busy);
   const clear = usePanel((state) => state.clear);
@@ -57,14 +65,28 @@ export function StatusStrip() {
         </span>
         <ChevronDown className="h-4 w-4 flex-none text-muted" aria-hidden />
       </button>
+      {onFollowups && (
+        <IconButton label={t('followups.title')} aria-pressed={followupsOpen} onClick={onFollowups}>
+          <Bell className="h-4 w-4" />
+        </IconButton>
+      )}
       <IconButton
         label={historyOpen ? t('status.closeHistory') : t('status.history')}
         aria-pressed={historyOpen}
-        onClick={() => setHistoryOpen(!historyOpen)}
+        onClick={() => {
+          onHistory?.();
+          setHistoryOpen(!historyOpen);
+        }}
       >
         <History className="h-4 w-4" />
       </IconButton>
-      <IconButton label={t('status.newChat')} onClick={clear}>
+      <IconButton
+        label={t('status.newChat')}
+        onClick={() => {
+          onHistory?.();
+          clear();
+        }}
+      >
         <SquarePen className="h-4 w-4" />
       </IconButton>
       <IconButton label={t('common.settings')} onClick={() => void openSettings()}>

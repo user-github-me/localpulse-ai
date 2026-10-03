@@ -8,6 +8,8 @@ export interface PromptPage {
   lang?: string;
   /** Extra context for the model, e.g. "part 2 of 5". */
   note?: string;
+  /** Independent documents, used to keep source names attached when long content is split. */
+  sourceParts?: { title: string; text: string }[];
 }
 
 export function languageName(tag: string): string {

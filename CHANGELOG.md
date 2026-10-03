@@ -4,6 +4,53 @@ All notable changes to LocalPulse AI. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and versions follow
 [Semantic Versioning](https://semver.org/).
 
+## Unreleased
+
+The next feature release expands LocalPulse into a reading, study and follow-up workspace. No new
+extension permissions or dependencies. Email read activity is optional and uses a separately
+connected public open-source service, or the user's own deployment.
+
+### Added
+
+- **Document workspace:** read up to 12 PDFs, text files and captured pages together, include or
+  exclude individual sources, preview the reading set and compare it. Content stays in panel
+  memory and isn't stored in history. Each file is limited to 25 MB; extracted text to 2 million
+  characters across the workspace.
+- **Quote sources:** a checked workspace quote names the document it actually matched. A quote
+  assembled from two different documents cannot pass verification.
+- **14 new quick actions** (24 total): research brief, evidence and gaps, study guide, flashcards,
+  practice quiz, glossary, decision brief, table extraction, code review, meeting notes, email
+  reply, timeline, argument map and discussion questions.
+- **Action library:** search by task and category, run without pinning, and pin or unpin favorites.
+  Settings also groups and searches the available actions.
+- **Better local history:** search all questions, answers, titles and sites; favorite and rename
+  conversations; export matching chats as one Markdown file; back up and import portable JSON.
+  Imports validate the whole file before saving, add fresh conversation identities, and never
+  import cloud permissions or editable page targets.
+- **Project roadmap:** current stage, architecture, practical next upgrades and contribution paths.
+- **Interactive flashcards:** reveal answers, navigate, shuffle, rate, review missed cards and
+  export escaped Anki CSV. Malformed model output retains ordinary Markdown; ratings stay in memory.
+- **Local read-aloud:** installed voices only, play/pause/resume/stop and voice selection, with
+  bounded utterances and cancellation when closing or starting another answer.
+- **Follow-up board:** reviewed page or standalone tasks, local search, due/upcoming/done views,
+  edit, complete/reopen and snooze; local calendar export with alarms. No inbox scraping or desktop
+  notification permission. Calendar apps deliver reminders after import.
+- **Optional encrypted email read activity:** manual image snippets with estimated read counts
+  and timestamps only; no subjects, bodies, recipients or link tracking. Private encryption and
+  signing keys stay in the extension with password-encrypted backups. A public MIT-licensed
+  Node/Vercel service stores encrypted events without expiry and deletes them after local saving
+  and signed acknowledgement. Includes strict API validation, bounded queues, Redis persistence,
+  GitHub deployment disclosures and hosting-provider privacy documentation.
+
+### Improved
+
+- Source names stay attached when long workspace documents are split for retrieval or summaries.
+- Cloud rules consider every included document; local files need consent for each request.
+- Retry and hand-off use the original workspace sources while available; missing sources produce
+  a clear message instead of silently substituting another reading set.
+- Context-menu requests received while files are being read are queued until reading finishes.
+- History names and favorites survive subsequent answers. Deleting all history has a confirmation.
+
 ## 1.0.1 — 2026-09-30
 
 A fix release: privacy edge cases, a safer Replace, and better results in other languages. No

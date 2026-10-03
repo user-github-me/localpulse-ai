@@ -2,9 +2,12 @@ import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { Button, IconButton, TextInput } from '@/components/ui';
 import {
-  BUILTIN_RECIPES,
   exportRecipes,
+  filterRecipes,
+  RECIPE_CATEGORIES,
   recipeById,
+  recipeCategory,
+  recipeLibrary,
   toCustomRecipe,
   validateRecipe,
   type Recipe,
@@ -40,13 +43,20 @@ function download(name: string, text: string) {
 export function RecipesSection({ settings }: { settings: Settings }) {
   const [draft, setDraft] = useState(EMPTY);
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string }>();
+  const [search, setSearch] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
   const custom = settings.customRecipes;
   const shown = settings.quickActions
     .map((id) => recipeById(id, custom))
     .filter((recipe): recipe is Recipe => recipe !== undefined);
-  const hidden = [...BUILTIN_RECIPES, ...custom].filter(
+  const hidden = recipeLibrary(custom).filter(
     (recipe) => !settings.quickActions.includes(recipe.id),
+  );
+  const available = filterRecipes(
+    hidden,
+    search,
+    undefined,
+    (recipe) => `${recipeLabel(recipe)} ${recipe.prompt}`,
   );
 
   const setShown = (ids: string[]) => void updateSettings({ quickActions: ids });
@@ -153,19 +163,43 @@ export function RecipesSection({ settings }: { settings: Settings }) {
       {hidden.length > 0 && (
         <div>
           <h3 className="text-sm font-semibold">{t('quick.notShown')}</h3>
-          <ul className="mt-2 flex flex-wrap gap-1.5">
-            {hidden.map((recipe) => (
-              <li key={recipe.id}>
-                <button
-                  type="button"
-                  onClick={() => setShown([...settings.quickActions, recipe.id])}
-                  className="rounded-full border border-line bg-surface px-3 py-1 text-[0.8rem] font-medium hover:border-local hover:text-local"
-                >
-                  {t('quick.show', { label: recipeLabel(recipe) })}
-                </button>
-              </li>
-            ))}
-          </ul>
+          <p className="mt-1 text-[0.8rem] text-muted">{t('actionLibrary.settingsNote')}</p>
+          <label className="mt-3 block">
+            <span className="sr-only">{t('actionLibrary.search')}</span>
+            <TextInput
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t('actionLibrary.searchPlaceholder')}
+            />
+          </label>
+          {RECIPE_CATEGORIES.map((category) => {
+            const group = available.filter((recipe) => recipeCategory(recipe) === category);
+            if (group.length === 0) return null;
+            return (
+              <div key={category} className="mt-3">
+                <h4 className="text-[0.78rem] font-medium text-muted">
+                  {(t as (key: string) => string)(`actionLibrary.${category}`)}
+                </h4>
+                <ul className="mt-1.5 flex flex-wrap gap-1.5">
+                  {group.map((recipe) => (
+                    <li key={recipe.id}>
+                      <button
+                        type="button"
+                        onClick={() => setShown([...settings.quickActions, recipe.id])}
+                        className="rounded-full border border-line bg-surface px-3 py-1 text-[0.8rem] font-medium hover:border-local hover:text-local"
+                      >
+                        {t('quick.show', { label: recipeLabel(recipe) })}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })}
+          {available.length === 0 && (
+            <p className="mt-3 text-sm text-muted">{t('actionLibrary.empty')}</p>
+          )}
         </div>
       )}
 
