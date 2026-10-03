@@ -460,6 +460,12 @@ onboarding:
   step1: What LocalPulse reads
   step2: Where answers come from
   step3: Start using it
+  stepTracking: Optional email tracking
+  trackingTitle: Would you like email read tracking?
+  trackingBody: Add a tracking image to emails you choose, then check estimated read counts and times. This is optional and free; your email content stays on your computer.
+  trackingManual: Nothing is inserted or sent automatically. You can set this up later from Email tracking in the panel.
+  trackingSkip: Skip for now
+  tipTracking: Open Email tracking below the provider bar to create an image or check read activity.
   steps: Setup steps
   readsTitle: LocalPulse reads the page you ask about.
   reads1: When you use LocalPulse on a tab, it reads that page's text so the AI can answer. It doesn't read tabs you don't use it on.
@@ -615,7 +621,7 @@ followups:
   reminders: This board checks due dates while open. Import the calendar file into your calendar app to receive reminders; LocalPulse does not send desktop notifications.
   new: New follow-up
   addPage: Add current page
-  tracking: Image activity tracking
+  tracking: Email tracking
   search: Search follow-ups
   searchPlaceholder: Search titles and sites…
   filter: Show follow-ups
@@ -663,26 +669,60 @@ tracking:
   invalidUrl: Use a public HTTPS URL without credentials, query or fragment. HTTP is allowed only on localhost for development.
 
 readTracking:
-  title: Private email read activity
+  title: Email tracking
+  entry: Email tracking
+  tools: More tools
+  intro: Add an image to an email, then check estimated reads. Email subjects, messages and recipient addresses stay on your computer.
+  connection: Tracking service
+  publicService: Free public service
+  connectionNote: Connect once to use the open-source LocalPulse service on Vercel. No account or API key needed.
+  contentStays: Email content stays here. The service receives public keys and image requests; it stores encrypted timestamps. Hosting providers handle network metadata.
+  customServer: Use your own server
+  usePublic: Use the free public service
+  enable: Enable email tracking
+  connecting: Connecting…
+  ready: Connected · email content stays here
+  serviceSettings: Service settings
+  connectionComplete: Connected. Create an image for your first email below.
+  connectStep: 1. Connect the free service
+  createStep: 2. Add an image to your email
+  createHelp: Create one image per email. Copy it, paste it into a rich-text composer, and send your email as usual.
+  imageName: 'Tracking image {number}'
+  htmlOptions: HTML options
+  backupReminder: Back up this image and your keys before sending
+  checking: Checking reads…
+  savedThenDeleted: New timestamps are saved on this device, then deleted from the server. Click again to collect another batch.
+  empty: Create an image above to start. Each email’s read activity will appear here.
+  noActivity: No activity yet. Mail apps may block or cache images.
+  lastActivity: 'Last image request: {time}'
+  requests:
+    1: 1 image request
+    n: $1 image requests
+  reliabilityShort: Image requests estimate reads. Mail apps and scanners can preload, cache or block images.
+  backupSimple: Save a password-encrypted copy of your keys, images and read times. Keep it before clearing browser data or uninstalling. Restore into a browser without existing tracking images.
+  privacyDetails: Privacy and read-count limitations
+  hostingNote: Vercel and Upstash handle network addresses, URLs and request timing under their privacy policies. This application sets no cookies or analytics.
+  permissionError: Allow access to the tracking service when your browser asks, then try connecting again.
+  clipboardError: This browser could not copy the image. Open HTML options and copy the code into an editor that supports HTML.
   note: An optional tracking image reports estimated reads. LocalPulse never sends email content, subjects, recipients or destination links to this service.
   privacy: Each image-request timestamp is encrypted for your extension. Your private keys stay here. Collected events are deleted after your extension saves and acknowledges them. Uncollected encrypted events and image links have no time-based expiry.
-  transparency: View this server’s public source and data policy
+  transparency: Public source, data policy and hosting details
   connected: Encrypted read service connected.
-  create: Create private tracking image
+  create: Create tracking image
   created: Tracking image created. Back up your keys before sending it.
   snippet: Private tracking image
   image: Image
-  paste: Copy for email and paste into a rich-text email composer. Some mail apps strip pasted images; test with your own inbox. Disclose the tracking to recipients. This panel never loads the image. Creating and opening previews elsewhere can generate an event.
+  paste: Copy the image and paste it into the email’s message area. It is invisible. Test with your own inbox; some mail apps remove pasted images. Disclose tracking to recipients.
   copied: Tracking image copied. Paste into your email composer.
-  results: Local read results
-  collect: Collect and delete server events
-  collected: Read events saved on this device and acknowledged for server deletion.
+  results: 3. Check read activity
+  collect: Check reads
+  collected: Read activity updated. New events were saved locally and deleted from the server.
   reliability: Image requests can be preloaded, cached, blocked or generated by scanners. Counts and times estimate activity; they cannot prove human reads or delivery. Up to 1,000 encrypted events wait per image; a full queue can miss activity. Collect again to fetch another batch.
   count: '{count} image requests'
   times: View latest 100 request times
   remove: Remove tracking image
   removeNote: Delete queued events and local results for this image? Images already sent remain valid and can generate new events. Export an encrypted backup first if you may need access again.
-  backup: Encrypted key and result backup
+  backup: Back up or restore tracking
   backupNote: Your encryption and signing keys, image capabilities and read times are stored only in this browser. Export a password-encrypted backup before uninstalling or clearing browser data. Losing the keys loses access. Import requires a browser without existing tracking images.
   password: Backup password (at least 12 characters)
   export: Export encrypted backup

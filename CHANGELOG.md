@@ -4,13 +4,19 @@ All notable changes to LocalPulse AI. The format follows
 [Keep a Changelog](https://keepachangelog.com/) and versions follow
 [Semantic Versioning](https://semver.org/).
 
-## Unreleased
+## 1.1.0 — Unreleased
 
 The next feature release expands LocalPulse into a reading, study and follow-up workspace. No new
 extension permissions or dependencies. Email read activity is optional and uses a separately
 connected public open-source service, or the user's own deployment.
 
 ### Added
+
+- **Discoverable email tracking:** first-run setup offers explicit opt-in or Skip for now; a
+  labeled Email tracking button opens the feature directly from the panel. The free public
+  service is selected with a real URL value, while custom hosting remains available.
+- **Guided tracking workflow:** connect, create/copy an image, and check reads with automatic
+  deletion after saving. Backups, HTML and privacy details expand only when needed.
 
 - **Document workspace:** read up to 12 PDFs, text files and captured pages together, include or
   exclude individual sources, preview the reading set and compare it. Content stays in panel

@@ -15,6 +15,10 @@ They cannot prove human reading, delivery, location or recipient identity.
 The public source is [user-github-me/localpulse-ai](https://github.com/user-github-me/localpulse-ai/tree/main/tools/email-tracker).
 The deployment's `/` page and `/transparency` disclose the protocol, stored fields, hosting providers,
 limits and exact Git commit. Vercel deploys this directory from that GitHub repository.
+The extension’s first-run setup offers an explicit connection or Skip for now. **Email tracking**
+in the panel opens a connect/create/check workflow. Connection alone never inserts images or
+creates activity. Backup and custom-server controls remain available.
+
 The public deployment address is https://localpulse-email-tracker.vercel.app.
 Its `/api/status` reports `ready: false` when the durable encrypted queue is not configured;
 the extension refuses to connect in that state instead of silently losing pending events.
