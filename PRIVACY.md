@@ -15,7 +15,8 @@ Hosting providers handle network metadata under their policies, as explained bel
   a quick action or the right-click menu), it reads that page's text, title and address, and any
   text you selected. While the side panel is open, it reads the current tab to show what it will
   use. It doesn't read tabs you don't use it on.
-- **Files you choose.** PDFs or text files you drop into the panel or open with its file button.
+- **Files you choose.** PDFs, text files, images or audio recordings you drop into the panel or open with its file button.
+- **Tab organizer.** On explicit access, lists public web-tab titles and addresses in the current window, previews exact duplicates, groups by domain in Chrome and saves selected sessions locally. No content or tab metadata is sent to a service. Restoring explicitly opens saved websites with ordinary browser requests. Saved URLs may contain private query details.
 - **Other tabs you choose.** Only when you add them to a question. The optional "tabs" permission
   is used to list their titles and addresses so you can pick them.
 - **Document workspace.** Files you add and snapshots of pages you explicitly capture remain in
@@ -54,11 +55,13 @@ The extension stores these items only in your browser on this computer:
 - **Chat history.** Your questions and the answers, with the title and address of the page each
   was about, but not the page text. Favorites and names you choose also stay here. History searches
   run locally. You can turn history off and delete it in Settings or History.
+- **Research library.** Complete text, titles and addresses of sources you explicitly save as named collections. Searches run locally. Delete collections separately from chat history. Library JSON backups contain full source content; keep them private. Reopening and importing collections requires fresh cloud consent and preserves original site restrictions. No pages are automatically saved.
+- **Saved tab sessions.** User-chosen names, titles and full web addresses; delete them from Tab organizer separately from chat history.
 - **Downloaded in-browser models.** The built-in model is managed by your browser.
 - **Follow-ups.** Titles you review, optional web-page addresses, due dates and completion status.
   This independent local list stays available when chat history is disabled. No email bodies or
   recipient addresses are scraped. Delete tasks or clear the board from Follow-ups.
-- **Email read activity.** The chosen server URL, private encryption and signing keys, random
+- **Email read activity.** The chosen server URL, private encryption and signing keys, private names, random local draft UUIDs, random
   tracking-image capabilities, request timestamps and pending acknowledgements. These persist
   locally across browser restarts without expiry. They contain no email subjects, bodies,
   recipient addresses or destination links. Disconnecting forgets the chosen URL but preserves
@@ -83,14 +86,16 @@ voices the browser reports as installed locally, with no remote voice fallback.
 ## Optional email read activity
 
 The first-run welcome flow offers tracking with an explicit enable button and Skip for now.
-No tracking requests happen merely by installing, viewing setup or opening the tracking panel.
+No tracking requests happen merely by installing or viewing setup. Opening an already-connected dashboard only reads local data; opted-in scheduling can collect activity while the browser runs. Enabling automatic tracking prepares a first random image; further images are created for supported compose drafts.
 Tracking is off until you explicitly connect a server. The optional service is open source under
 MIT and can run on Vercel or your own host. Read its [public source and deployment policy](tools/email-tracker/README.md).
 The server's `/` and `/transparency` disclose the implementation, GitHub deployment commit, queue
 schema, deletion, limits and hosting providers. Connecting grants access only to its address.
+Optional Gmail and Outlook access permits a bundled, site-specific script to find compose editor structures and tracking-image URLs. It inserts a different random image per draft, offers a per-draft toggle and shows locally decrypted counts/times next to tracked message images. It does not read subjects, recipients, message text or message IDs for tracking, and never sends email. Content scripts receive public image capabilities and display counts only; private keys stay in trusted extension contexts. Chrome restricts extension-local storage to trusted contexts.
+
 Creating a tracking image sends only public P-256 encryption and signature-verification keys.
 The extension never accesses inboxes, email subjects, bodies, contacts or recipients for this
-feature and never sends email. You paste a tracking image into an email yourself.
+feature and never sends email. Automatic insertion applies only to supported email sites you explicitly allow; manual images remain available for other apps.
 
 Normal page reading can still read a webmail page or selected message when you ask the AI about it;
 the page-provider consent and privacy rules above apply to that separate action.
@@ -111,12 +116,14 @@ key can decrypt queued payloads. Deletion requires a signature from the user's p
 key, which is also never sent. Sharing an image URL lets others generate activity and inspect its
 ciphertext, so it cannot prove authenticity of a human read.
 
-**Check reads** fetches at most 100 events per image per collection. The
+**Check reads**, an explicit message-badge refresh and optional 15-minute browser scheduling fetch at most 100 events per image per collection. The
 extension decrypts and saves them locally before signing acknowledgement of those exact event IDs.
 The server then deletes those values, removing empty queues. Failed acknowledgements retry on
 collection without counting the same event twice; newly arriving events are retained. Deletion
 applies to the active queue, not a promise to erase provider logs or historical infrastructure
-snapshots. There is **no time-based expiry** for image capabilities, queued events or local results.
+snapshots. Notifications are off by default and require separate optional permission. They display generic local counts. Automatic insertion and notifications can be disabled in Email tracking; reload existing mail tabs afterward. Direct owner-side image loads are blocked when browser rules can recognize them, but server-side proxies/preloads can still count.
+
+There is **no time-based expiry** for image capabilities, queued events or local results.
 Up to 1,000 events can wait per image; a full queue or provider quota can miss requests. Local
 results hold up to 20,000 timestamps per image and 100 images per server.
 
@@ -146,8 +153,12 @@ providers; this independently configured feature can still contact its server.
   request's changes from GitHub; for a YouTube video, it downloads the transcript from YouTube.
   These requests go only to the site you're reading.
 
-These and explicit optional tracker requests are the only network requests LocalPulse makes
-besides requests to AI providers you set up.
+- **OCR language data** downloads from a pinned tessdata_fast commit on raw.githubusercontent.com only after you enable recognition. Tesseract code and WebAssembly ship in the package. Images/scanned PDF pages and recognized text are processed locally.
+- **Audio model data** downloads from a pinned Whisper tiny English repository on Hugging Face and its CDN only after you enable transcription. Runtime code/WebAssembly ship in the package. Audio and transcripts are processed locally; no microphone is accessed.
+- **Explicit web research** sends only a typed query to Wikipedia or your chosen SearXNG endpoint, or opens a typed-query DuckDuckGo link. Public source text is fetched only after selection, without cookies. Services see the query, network address and timing. No private source context is attached automatically; AI Local-only mode does not disable explicit web search.
+- **Restoring a saved tab session** opens its chosen websites with ordinary browser requests after confirmation.
+
+These disclosed downloads and explicit optional features are the network requests LocalPulse makes besides requests to AI providers you set up.
 
 ## What it does NOT do
 

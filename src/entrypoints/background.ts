@@ -1,3 +1,4 @@
+import { registerTrackingBackground, syncTrackingIntegration } from '@/core/tracking-integration';
 import { i18n } from '#i18n';
 import { browser, defineBackground, type Browser } from '#imports';
 import { syncLocalOriginRules } from '@/providers/local-origin';
@@ -26,6 +27,12 @@ const MENU_ITEMS = [
 ] as const;
 
 export default defineBackground(() => {
+  // Keep private keys/settings inaccessible to isolated content scripts on Chromium.
+  const localStorage = browser.storage.local as unknown as {
+    setAccessLevel?: (options: { accessLevel: string }) => Promise<void>;
+  };
+  void localStorage.setAccessLevel?.({ accessLevel: 'TRUSTED_CONTEXTS' }).catch(() => {});
+  registerTrackingBackground();
   // Open the panel from our own click handler: that click also grants activeTab for the tab.
   // openPanelOnActionClick would open it without tab access.
   if (!import.meta.env.FIREFOX) {
@@ -69,6 +76,7 @@ export default defineBackground(() => {
   });
 
   browser.runtime.onStartup.addListener(async () => {
+    await syncTrackingIntegration();
     await syncLocalOriginRules((await getSettings()).endpoints);
   });
 

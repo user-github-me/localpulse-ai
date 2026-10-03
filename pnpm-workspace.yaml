@@ -1,0 +1,5 @@
+# Browser bundles need no native ONNX runtime or dependency postinstall scripts.
+allowBuilds:
+  onnxruntime-node: false
+  protobufjs: false
+  tesseract.js: false

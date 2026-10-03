@@ -8,6 +8,8 @@ import { sourceKey } from './conversation';
 export interface WorkspaceDocument extends ExtractedPage {
   id: string;
   enabled: boolean;
+  /** Reopened library content needs fresh cloud consent, in addition to its original site rules. */
+  requiresConsent?: boolean;
 }
 
 export const MAX_WORKSPACE_DOCUMENTS = 12;
@@ -38,6 +40,13 @@ export function workspaceFits(
 /** Two local files with the same name are separate disclosures, even within one panel session. */
 export function workspaceSourceKey(document: WorkspaceDocument): string {
   return document.url.startsWith('file:') ? `file:${document.id}` : sourceKey(document.url);
+}
+
+export function workspaceSourceKeys(document: WorkspaceDocument): string[] {
+  const key = workspaceSourceKey(document);
+  return document.requiresConsent && !key.startsWith('file:')
+    ? [key, `file:${document.id}`]
+    : [key];
 }
 
 /** Frames the reading set and retains independent parts for budget-aware splitting in runTurn. */
@@ -77,7 +86,7 @@ export function checkWorkspaceQuotes(
   const chosen = documents.filter((document) => document.enabled);
   const quotes = new Map<string, SourceQuote>();
   for (const document of chosen) {
-    for (const quote of checkQuotes(answer, document.markdown)) {
+    for (const quote of checkQuotes(answer, document.markdown, true)) {
       const existing = quotes.get(quote.text);
       if (!existing || (!existing.found && quote.found)) {
         quotes.set(

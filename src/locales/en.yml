@@ -111,6 +111,7 @@ context:
   allowHost: Allow access to {host}
   accessTitle: LocalPulse needs your OK to read this tab
   accessBody: Click the LocalPulse icon in the toolbar, or press {shortcut}, to let it read this tab. Browsers ask again for each tab unless you allow all sites.
+  accessBodyNoShortcut: Click the LocalPulse icon in the toolbar to let it read this tab. Browsers ask again for each tab unless you allow all sites.
   allowAllSites: Allow on all sites
   restrictedFile: To read files on this computer, turn on "Allow access to file URLs" for LocalPulse in the extensions page.
   restrictedPage: Browsers don't let extensions read this kind of page. You can paste text into the chat instead.
@@ -462,8 +463,8 @@ onboarding:
   step3: Start using it
   stepTracking: Optional email tracking
   trackingTitle: Would you like email read tracking?
-  trackingBody: Add a tracking image to emails you choose, then check estimated read counts and times. This is optional and free; your email content stays on your computer.
-  trackingManual: Nothing is inserted or sent automatically. You can set this up later from Email tracking in the panel.
+  trackingBody: Enable once to connect the free public service and prepare your first tracking image. Gmail and Outlook drafts will then get their own image automatically. Email content stays on this device.
+  trackingManual: Allow the browser’s requested access to supported email sites. Each draft has a tracking toggle; sent messages show estimated image requests. Other mail apps can use manual images from Email tracking. Disclose tracking to recipients.
   trackingSkip: Skip for now
   tipTracking: Open Email tracking below the provider bar to create an image or check read activity.
   steps: Setup steps
@@ -492,6 +493,7 @@ onboarding:
   handoffBody: Without any setup, LocalPulse can copy your question and open ChatGPT, Claude, Gemini or Perplexity for you to paste and send.
   doneTitle: You're ready.
   tip1: Pin LocalPulse to the toolbar from the extensions menu, then click it on any page. You can also press {shortcut}.
+  tip1NoShortcut: Pin LocalPulse to the toolbar from the extensions menu, then click it on any page. You can assign a keyboard shortcut in your browser's extension settings.
   tip2: Select text and right-click to explain, summarize or translate just that part.
   tip3: 'The light at the top of the panel shows where answers are written: green on this device, amber in the cloud.'
   open: Open LocalPulse
@@ -675,24 +677,24 @@ readTracking:
   intro: Add an image to an email, then check estimated reads. Email subjects, messages and recipient addresses stay on your computer.
   connection: Tracking service
   publicService: Free public service
-  connectionNote: Connect once to use the open-source LocalPulse service on Vercel. No account or API key needed.
-  contentStays: Email content stays here. The service receives public keys and image requests; it stores encrypted timestamps. Hosting providers handle network metadata.
+  connectionNote: Enable once for automatic tracking in Gmail and Outlook. No account or API key needed.
+  contentStays: Browser access lets LocalPulse insert images into Gmail and Outlook drafts. Email content stays here. The service receives public keys and image requests; it stores encrypted timestamps. Hosting providers handle network metadata.
   customServer: Use your own server
   usePublic: Use the free public service
   enable: Enable email tracking
   connecting: Connecting…
   ready: Connected · email content stays here
   serviceSettings: Service settings
-  connectionComplete: Connected. Create an image for your first email below.
+  connectionComplete: Ready. Gmail and Outlook drafts will get tracking automatically; your first image is prepared.
   connectStep: 1. Connect the free service
-  createStep: 2. Add an image to your email
-  createHelp: Create one image per email. Copy it, paste it into a rich-text composer, and send your email as usual.
+  createStep: Manual tracking images
+  createHelp: For other email apps, create one image per email. Copy it, paste it into a rich-text composer, and send your email as usual.
   imageName: 'Tracking image {number}'
   htmlOptions: HTML options
   backupReminder: Back up this image and your keys before sending
   checking: Checking reads…
   savedThenDeleted: New timestamps are saved on this device, then deleted from the server. Click again to collect another batch.
-  empty: Create an image above to start. Each email’s read activity will appear here.
+  empty: Tracked emails will appear here when you compose in Gmail or Outlook. Use manual images for other apps.
   noActivity: No activity yet. Mail apps may block or cache images.
   lastActivity: 'Last image request: {time}'
   requests:
@@ -714,7 +716,7 @@ readTracking:
   image: Image
   paste: Copy the image and paste it into the email’s message area. It is invisible. Test with your own inbox; some mail apps remove pasted images. Disclose tracking to recipients.
   copied: Tracking image copied. Paste into your email composer.
-  results: 3. Check read activity
+  results: Read activity
   collect: Check reads
   collected: Read activity updated. New events were saved locally and deleted from the server.
   reliability: Image requests can be preloaded, cached, blocked or generated by scanners. Counts and times estimate activity; they cannot prove human reads or delivery. Up to 1,000 encrypted events wait per image; a full queue can miss activity. Collect again to fetch another batch.
@@ -734,3 +736,131 @@ readTracking:
   limit: This browser holds up to 100 images per server and 20,000 read times per image. Export your results before removing old images.
   unavailable: This server’s encrypted event queue is not configured yet. View its public status or connect another deployment.
   failed: Couldn't complete the operation. Check the server, permissions or backup password. Failed event acknowledgement is retried before collecting new events.
+
+library:
+  title: Research library
+  intro: Save chosen workspace sources as named collections on this device. Nothing is saved until you choose Save. Opening a collection replaces your temporary workspace.
+  name: Collection name
+  save: Save chosen sources
+  selection: '{count} chosen sources'
+  search: Search names and source text
+  collections: Saved collections
+  open: Open collection
+  rename: Rename
+  exportOne: Export collection
+  delete: Delete
+  deleteNote: Delete this collection from this device? Downloaded backups remain until you delete them separately.
+  confirmDelete: Delete collection
+  empty: Add files or capture pages in Document workspace, then save your first collection here.
+  saved: Collection saved on this device.
+  export: Export library
+  import: Import library
+  imported: Collections imported as separate copies.
+  backupNote: JSON exports contain complete source text, titles and addresses. Keep them private. Imported and reopened collections require fresh consent for cloud AI. Up to 50 collections and 20 million text characters can be saved. Deleting chat history does not delete this library.
+  invalidName: Enter a collection name with 1–120 characters.
+  invalidBackup: This is not a valid LocalPulse research library backup.
+  limit: This library holds up to 50 collections and 20 million characters. Each collection allows 12 sources and 2 million characters. Backup files must be under 25 MB.
+  failed: Couldn't update the library. Try again after the current action finishes.
+
+citations:
+  open: Open source excerpt
+  title: Verified source excerpt
+  page: 'PDF page {page}'
+  source: Open original source
+  note: This excerpt matches extracted source text. Text matching does not verify the answer’s overall truth. Repeated wording opens its first match. Local PDF excerpts show extracted page text.
+
+tabOrganizer:
+  title: Tab organizer
+  intro: Review this window’s public web tabs, select exact duplicates or group by domain. All processing stays here. Private windows are excluded. No tabs are closed automatically.
+  load: Review this window’s tabs
+  filter: Filter tabs
+  tabs: Current web tabs
+  duplicates: Select unpinned duplicates
+  selectAll: Select all
+  selectNone: Clear selection
+  pinned: Pinned
+  selected: '{count} tabs selected'
+  name: Session name
+  save: Save selected session
+  saved: Session saved locally.
+  group: Group selected by domain
+  grouped: Selected unpinned tabs grouped by domain.
+  closeSelected: Close selected tabs…
+  closeNote: Close selected unpinned tabs whose addresses still match this preview? Save a session first if you may need them later.
+  confirmClose: Confirm close tabs
+  closed: Selected unchanged, unpinned tabs closed.
+  policy: Only titles and full web addresses are saved after you choose Save. Addresses may contain private query details. Delete saved sessions here. Up to 50 sessions with 100 tabs each; review shows up to 500 tabs. Domain groups use Chrome’s optional tabGroups permission; Firefox supports review and saved sessions.
+  sessions: Saved tab sessions
+  restore: Restore…
+  restoreNote: 'Open {count} saved addresses in new background tabs? Visiting these sites makes normal browser network requests.'
+  confirmRestore: Open saved tabs
+  limit: Save up to 100 web tabs per session and 50 sessions.
+  failed: Couldn't update tabs or sessions. Check browser permissions and try again.
+
+trackingAuto:
+  manual: Advanced · manual images and private names
+  title: Automatic email tracking
+  intro: Enable once for Gmail and Outlook. Each compose draft gets a separate tracking image, with a per-draft toggle. Your email content is never sent to the tracker. Reload already-open mail tabs after changing settings.
+  enable: Enable automatic Gmail and Outlook tracking
+  disable: Turn off automatic tracking
+  enabled: Automatic tracking is on for Gmail and Outlook.
+  preparing: LocalPulse · preparing tracking…
+  draftOn: LocalPulse · tracking on
+  draftOff: LocalPulse · tracking off
+  draftError: LocalPulse · tracking unavailable
+  retry: Click to retry. Check Email tracking settings for connection or limits.
+  draftHint: Toggle the tracking image for this draft. Email content stays here. Disclose tracking to recipients.
+  badge: '◉ {count} estimated reads'
+  badgeTime: 'Last image request: {time}. Click to check again. Mail proxies and preloads affect counts.'
+  badgeEmpty: No image requests collected yet. Click to check. Images may be blocked or cached.
+  notifications: Notify me of new read activity
+  notificationNote: Optional browser notifications. Automatic tracking checks every 15 minutes while your browser is running. Notifications show generic counts only. Free hosting quotas can limit collection.
+  notificationTitle: LocalPulse · email read activity
+  notificationBody: '{count} new image requests were saved locally. These are estimated reads.'
+  test: Test tracking service
+  testNote: Creates a separate test image, requests it, decrypts its timestamp and deletes its event. No email is needed. Failed test capabilities stay local for cleanup on retry.
+  testSuccess: The encrypted tracking pipeline works and the test event was deleted. Mail apps can still block, preload or cache real images.
+  localName: Private image name
+  saveName: Save name locally
+  nameNote: Names stay here and in encrypted backups; they are never sent to the server.
+  search: Search private image names
+
+media:
+  ocr: Image and PDF text
+  audio: Audio transcript
+  ocrNote: Recognize a chosen image or scanned PDF on this device using Tesseract. Select a language, download its data once, then review the recognized text. Up to 10 PDF pages, 16 million image pixels and 25 MB per file.
+  audioNote: Transcribe a chosen recording on this device using Whisper tiny English. The first download is roughly 75 MB. Up to 10 minutes and 25 MB per file. Accuracy varies; review the transcript. No microphone access or uploads.
+  language: Recognition language
+  download: Download model data and enable
+  downloadNote: Only model data is downloaded after this action. OCR data comes from raw.githubusercontent.com; audio data from Hugging Face and its CDN. Code and WebAssembly are bundled. Cached data stays until browser data is cleared. Your file and recognized text are never uploaded by this tool.
+  ready: Model ready on this device.
+  file: Choose a local file
+  recognize: Recognize text locally
+  transcribe: Transcribe locally
+  review: Review and correct text
+  progress: 'Working locally · {percent}%'
+  cancel: Cancel processing
+  cancelled: Processing cancelled. OCR may need to be enabled again.
+  add: Add reviewed text to workspace
+  export: Export text
+  empty: No text was recognized. Try clearer input or another language.
+  limit: Choose a file under 25 MB; audio must be under 10 minutes and scanned PDFs under 10 pages.
+  failed: Couldn't process this file or load model data. Check browser support, file format, size and download permissions, then try again.
+
+research:
+  title: Web research
+  intro: Search a query you type, then choose public sources to add to your workspace. The default searches Wikipedia; advanced users can supply a SearXNG server. No current-page or email content is attached automatically.
+  query: Search query
+  custom: Use a SearXNG search server
+  endpoint: Search server URL
+  customNote: Use a public HTTPS SearXNG base address with JSON search enabled. Public instances may block JSON requests. The query is sent directly to your server and its search providers.
+  disclosure: 'Clicking Search sends only your typed query to {host}. Your browser’s network address and request timing are visible to that service. AI Local-only mode does not block this separate explicit search.'
+  search: Search this query
+  browser: Open this query in DuckDuckGo
+  browserNote: This link sends your typed query to DuckDuckGo when clicked. For wider search, open results there and explicitly capture chosen pages in Document workspace.
+  add: Fetch public source into workspace
+  added: Source added to your workspace. AI requests still follow your existing privacy settings.
+  searched: Results ready. Choose which sources to fetch.
+  invalidUrl: Use an HTTPS base URL without credentials, query or fragment.
+  failed: Search or source retrieval failed. Check permissions, server JSON support and network access. Pages requiring login, scripts or redirects may need to be opened and captured manually.
+  limit: This response is too large to read safely.

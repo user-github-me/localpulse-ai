@@ -5,7 +5,7 @@ import type { ExtractedPage } from '@/extractors/types';
 import { countWords, estimateTokens, hostnameOf } from '@/lib/text';
 import { updateSettings } from '@/storage/settings';
 import { formatNumber, t } from '../../shared/i18n';
-import { domainOf, panelShortcut } from '../../shared/open';
+import { domainOf, usePanelShortcut } from '../../shared/open';
 import { usePanel } from '../store';
 import { ExtraTabsList, TabsPicker } from './TabsPicker';
 import { WorkspaceButton, WorkspaceSummary } from './Workspace';
@@ -204,6 +204,7 @@ function formatTokens(tokens: number): string {
 }
 
 function AccessNeeded({ tabId, sitePattern }: { tabId?: number; sitePattern?: string }) {
+  const shortcut = usePanelShortcut();
   const refreshTab = usePanel((state) => state.refreshTab);
   useEffect(() => {
     if (tabId !== undefined && !sitePattern) void requestSiteAccessInBrowser(tabId);
@@ -232,7 +233,7 @@ function AccessNeeded({ tabId, sitePattern }: { tabId?: number; sitePattern?: st
     <>
       <p className="text-sm font-medium">{t('context.accessTitle')}</p>
       <p className="mt-0.5 text-[0.8rem] text-muted">
-        {t('context.accessBody', { shortcut: panelShortcut() })}
+        {shortcut ? t('context.accessBody', { shortcut }) : t('context.accessBodyNoShortcut')}
       </p>
       <Button
         size="sm"

@@ -6,12 +6,22 @@ All notable changes to LocalPulse AI. The format follows
 
 ## 1.1.0 — Unreleased
 
-The next feature release expands LocalPulse into a reading, study and follow-up workspace. No new
-extension permissions or dependencies. Email read activity is optional and uses a separately
+- Opt-in saved research collections with local full-text search, rename/delete and validated JSON backups; fresh cloud consent on reopening/import.
+- Navigable verified source excerpts with surrounding text and extracted PDF page numbers.
+
+The next feature release expands LocalPulse into a reading, study and follow-up workspace. Tab grouping, background scheduling and notifications use optional permissions. Local OCR and
+audio tools use bundled open-source runtimes and opt-in model downloads. Email read activity is optional and uses a separately
 connected public open-source service, or the user's own deployment.
 
 ### Added
 
+- **Automatic Gmail and Outlook tracking:** one onboarding choice connects and prepares the first image; separate images per compose draft, per-draft toggles and local estimated-read badges near tracked messages.
+- **Tracking controls:** local-only image names, optional generic notifications, 15-minute browser collection and a synthetic encrypted pipeline test with cleanup. Direct owner pixel loads are blocked where identifiable.
+- **Private tab organizer:** explicit tab review, exact-URL duplicate selection, protected close confirmation, local session save/restore and optional native domain groups in Chrome.
+
+- **Local media:** bundled Tesseract recognizes images/scanned PDFs with seven optional language packs; bundled Whisper tiny English transcribes chosen audio. Explicit model-data downloads, review/correction, text export and workspace handoff.
+- **Explicit web research:** typed-query Wikipedia search, optional SearXNG JSON endpoint and selected public-source fetching; no private context is attached automatically.
+- **Platform shortcut hints:** browser-reported OS and configured extension command; Windows/Linux modifier names and macOS symbols.
 - **Discoverable email tracking:** first-run setup offers explicit opt-in or Skip for now; a
   labeled Email tracking button opens the feature directly from the panel. The free public
   service is selected with a real URL value, while custom hosting remains available.
@@ -49,6 +59,12 @@ connected public open-source service, or the user's own deployment.
   GitHub deployment disclosures and hosting-provider privacy documentation.
 
 ### Improved
+
+- Fixed fresh-install background startup when optional alarm/notification APIs are unavailable;
+  onboarding and toolbar handlers now register before tracking is enabled. Added a production-manifest
+  regression check so pre-granted test permissions cannot hide this failure.
+- Fixed media dialog model readiness across React effect cleanup and shortcut guidance when the
+  browser command is unassigned. Added real PDF OCR, offline model-cache reuse and optional notification checks.
 
 - Source names stay attached when long workspace documents are split for retrieval or summaries.
 - Cloud rules consider every included document; local files need consent for each request.

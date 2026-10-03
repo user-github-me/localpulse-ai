@@ -120,3 +120,30 @@ describe('private read tracking', () => {
     ).toBe(false);
   });
 });
+
+it('keeps private names local and inside encrypted backups', async () => {
+  const { renameReadTracker, exportReadBackup, importReadBackup } =
+    await import('@/storage/email-tracker');
+  vi.spyOn(permissions, 'contains').mockResolvedValue(true);
+  const calls: unknown[] = [];
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, options) => {
+    const body = options?.body ? JSON.parse(String(options.body)) : null;
+    calls.push(body);
+    return new Response(
+      JSON.stringify(
+        body?.encryptionKey
+          ? { mailbox, token, pixelUrl: `${base}/p/${token}.gif` }
+          : { service: 'localpulse-email-tracker', version: 3, ready: true },
+      ),
+    );
+  });
+  await connectTracker(base);
+  await createReadTracker();
+  await renameReadTracker(mailbox, 'Private project name');
+  expect(JSON.stringify(calls)).not.toContain('Private project name');
+  const backup = await exportReadBackup('owner backup password');
+  expect(backup).not.toContain('Private project name');
+  await fakeBrowser.storage.local.remove('readTrackerVault');
+  await importReadBackup(backup, 'owner backup password');
+  expect((await listReadTrackers())[0]?.name).toBe('Private project name');
+});

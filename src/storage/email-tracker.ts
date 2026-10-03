@@ -15,6 +15,10 @@ import {
 
 export interface ReadTracker {
   id: string;
+  name?: string;
+  draftId?: string;
+  reserved?: boolean;
+  diagnostic?: boolean;
   token: string;
   pixelUrl: string;
   createdAt: number;
@@ -110,7 +114,9 @@ export async function disconnectTracker(): Promise<void> {
 export async function listReadTrackers(): Promise<ReadTracker[]> {
   return (await vaultItem.getValue())?.trackers[await getTrackerUrl()] ?? [];
 }
-export function createReadTracker(): Promise<ReadTracker> {
+export function createReadTracker(
+  options: { reserved?: boolean; diagnostic?: boolean } = {},
+): Promise<ReadTracker> {
   return serial(async () => {
     const base = await getTrackerUrl(),
       values = await vault();
@@ -131,6 +137,8 @@ export function createReadTracker(): Promise<ReadTracker> {
       token: result.token,
       pixelUrl: result.pixelUrl,
       createdAt: Date.now(),
+      ...(options.reserved && { reserved: true }),
+      ...(options.diagnostic && { diagnostic: true }),
       reads: [],
       pendingAcknowledgements: [],
     };
@@ -155,12 +163,14 @@ async function acknowledge(
   }
 }
 /** Save decrypted events locally before acknowledgement. Retries cannot count an event twice. */
-export function collectReadActivity(): Promise<ReadTracker[]> {
+export function collectReadActivity(onlyId?: string): Promise<ReadTracker[]> {
   return serial(async () => {
     const base = await getTrackerUrl(),
       values = await vault();
     const trackers = values.trackers[base] ?? [];
-    for (const tracker of trackers) {
+    for (const tracker of trackers.filter((tracker) =>
+      onlyId ? tracker.id === onlyId : !tracker.reserved && !tracker.diagnostic,
+    )) {
       await acknowledge(base, values, tracker);
       const result = (await request(base, '/api/events', { token: tracker.token })) as {
         mailbox: string;
@@ -241,6 +251,9 @@ export function importReadBackup(content: string, password: string): Promise<voi
         throw new Error('backup');
       checked.trackers[base] = trackers.map((tracker) => {
         if (
+          (tracker.name !== undefined &&
+            (typeof tracker.name !== 'string' || tracker.name.length > 120)) ||
+          (tracker.draftId !== undefined && !READ_UUID.test(tracker.draftId)) ||
           !READ_UUID.test(tracker.id) ||
           !/^[a-zA-Z0-9_-]{16,3000}$/.test(tracker.token) ||
           tracker.pixelUrl !== `${base}/p/${tracker.token}.gif` ||
@@ -264,6 +277,10 @@ export function importReadBackup(content: string, password: string): Promise<voi
           throw new Error('backup');
         return {
           id: tracker.id,
+          ...(tracker.name && { name: tracker.name }),
+          ...(tracker.draftId && { draftId: tracker.draftId }),
+          ...(tracker.reserved === true && { reserved: true }),
+          ...(tracker.diagnostic === true && { diagnostic: true }),
           token: tracker.token,
           pixelUrl: tracker.pixelUrl,
           createdAt: tracker.createdAt,
@@ -284,3 +301,58 @@ export function importReadBackup(content: string, password: string): Promise<voi
 }
 export const readTrackerHtml = (tracker: ReadTracker) =>
   `<img src="${tracker.pixelUrl}" width="1" height="1" alt="" />`;
+
+/** Local labels and draft UUIDs never enter requests to the tracking service. */
+export function renameReadTracker(id: string, name: string): Promise<void> {
+  return serial(async () => {
+    if (name.trim().length > 120) throw new Error('name');
+    const base = await getTrackerUrl(),
+      values = await vault();
+    const tracker = values.trackers[base]?.find((t) => t.id === id);
+    if (!tracker) throw new Error('missing');
+    tracker.name = name.trim();
+    await vaultItem.setValue(values);
+  });
+}
+export async function reserveFirstTracker(): Promise<void> {
+  if (!(await listReadTrackers()).some((t) => t.reserved && !t.draftId))
+    await createReadTracker({ reserved: true });
+}
+export async function allocateDraftTracker(
+  draftId: string,
+): Promise<{ token: string; pixelUrl: string }> {
+  if (!READ_UUID.test(draftId)) throw new Error('draft');
+  return navigator.locks.request('localpulse-draft-allocation', async () => {
+    if (!(await listReadTrackers()).some((t) => t.draftId === draftId)) await reserveFirstTracker();
+    return serial(async () => {
+      const base = await getTrackerUrl(),
+        values = await vault();
+      const trackers = values.trackers[base] ?? [];
+      const tracker =
+        trackers.find((t) => t.draftId === draftId) ??
+        trackers.find((t) => t.reserved && !t.draftId);
+      if (!tracker) throw new Error('retry');
+      tracker.reserved = false;
+      tracker.draftId = draftId;
+      await vaultItem.setValue(values);
+      return { token: tracker.token, pixelUrl: tracker.pixelUrl };
+    });
+  });
+}
+/** Dedicated synthetic activity; failed cleanup retains its capability locally for retry. */
+export async function testTrackingService(): Promise<void> {
+  const previous = (await listReadTrackers()).filter((t) => t.diagnostic);
+  for (const old of previous) await removeReadTracker(old.id);
+  const tracker = await createReadTracker({ diagnostic: true });
+  const response = await fetch(tracker.pixelUrl, {
+    credentials: 'omit',
+    redirect: 'error',
+    cache: 'no-store',
+    signal: AbortSignal.timeout(15000),
+  });
+  if (!response.ok) throw new Error('diagnostic');
+  await response.arrayBuffer();
+  const list = await collectReadActivity(tracker.id);
+  if (!list.find((t) => t.id === tracker.id)?.reads.length) throw new Error('diagnostic');
+  await removeReadTracker(tracker.id);
+}

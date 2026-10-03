@@ -20,7 +20,7 @@ import {
   checkWorkspaceQuotes,
   workspaceFits,
   workspacePrompt,
-  workspaceSourceKey,
+  workspaceSourceKeys,
   MAX_WORKSPACE_FILE_BYTES,
   MAX_WORKSPACE_DOCUMENTS,
   type WorkspaceDocument,
@@ -227,6 +227,7 @@ interface PanelState {
   removeDocument(id: string): void;
   setWorkspaceActive(active: boolean): void;
   clearWorkspace(): void;
+  loadDocuments(documents: WorkspaceDocument[], append?: boolean): boolean;
   closeFile(): void;
   setHistoryOpen(open: boolean): void;
   setExtraTabs(tabs: ExtraTab[]): void;
@@ -355,7 +356,7 @@ export const usePanel = create<PanelState>()((set, get) => {
       const keys = [
         ...new Set(
           workspaceActive
-            ? documents.filter((document) => document.enabled).map(workspaceSourceKey)
+            ? documents.filter((document) => document.enabled).flatMap(workspaceSourceKeys)
             : urls.map(sourceKey),
         ),
       ];
@@ -520,7 +521,7 @@ export const usePanel = create<PanelState>()((set, get) => {
         documentCount = workspaceDocuments.length;
         page.title =
           documentCount === 1 ? page.title : t('workspace.count', { count: String(documentCount) });
-        sources = [...new Set(workspaceDocuments.map(workspaceSourceKey))];
+        sources = [...new Set(workspaceDocuments.flatMap(workspaceSourceKeys))];
         const citationInstruction =
           'When citing evidence, name the Document number and title from its heading. Distinguish agreement, disagreement and missing information across documents. Do not invent sources.';
         if (!instruction.includes(citationInstruction)) instruction += `\n${citationInstruction}`;
@@ -853,7 +854,7 @@ export const usePanel = create<PanelState>()((set, get) => {
               !(recipe.id === 'flashcards' && parseFlashcards(answerText))
                 ? usingWorkspace
                   ? checkWorkspaceQuotes(answerText, workspaceDocuments)
-                  : checkQuotes(answerText, page.text)
+                  : checkQuotes(answerText, page.text, true)
                 : undefined,
             state: 'done',
             status: undefined,
@@ -1312,6 +1313,21 @@ export const usePanel = create<PanelState>()((set, get) => {
       if (running || get().fileStatus) return;
       set({ workspaceActive: active, file: null });
       void refreshPreview();
+    },
+
+    loadDocuments(documents, append = false) {
+      if (running || get().fileStatus || !workspaceFits(append ? get().documents : [], documents))
+        return false;
+      set({
+        documents: [
+          ...(append ? get().documents : []),
+          ...documents.map((document) => ({ ...captureDocument(document), requiresConsent: true })),
+        ],
+        workspaceActive: true,
+        file: null,
+      });
+      void refreshPreview();
+      return true;
     },
 
     clearWorkspace() {

@@ -9,7 +9,7 @@ import { getTrackerUrl } from '@/storage/email-tracker';
 import { TrackerConnection } from '../shared/TrackerConnection';
 import { openPanelFromPage } from '../shared/firefox';
 import { t } from '../shared/i18n';
-import { openSettings, panelShortcut } from '../shared/open';
+import { openSettings, usePanelShortcut } from '../shared/open';
 import { useSettings } from '../shared/useSettings';
 
 const builtin = new BuiltinAIProvider();
@@ -222,6 +222,7 @@ function TrackingSetup({ onNext }: { onNext: () => void }) {
         <p className="mt-4 text-[0.95rem] leading-relaxed">{t('onboarding.trackingBody')}</p>
       </div>
       <TrackerConnection
+        automatic
         connected={connected}
         disabled={loading}
         onConnected={setConnected}
@@ -241,6 +242,7 @@ function TrackingSetup({ onNext }: { onNext: () => void }) {
 }
 
 function Finish() {
+  const shortcut = usePanelShortcut();
   useEffect(() => {
     void updateSettings({ onboardingComplete: true });
   }, []);
@@ -251,7 +253,7 @@ function Finish() {
         {t('onboarding.doneTitle')}
       </h1>
       <ul className="mt-6 space-y-3 text-[0.95rem] leading-relaxed">
-        <li>{t('onboarding.tip1', { shortcut: panelShortcut() })}</li>
+        <li>{shortcut ? t('onboarding.tip1', { shortcut }) : t('onboarding.tip1NoShortcut')}</li>
         <li>{t('onboarding.tip2')}</li>
         <li>{t('onboarding.tip3')}</li>
         <li>{t('onboarding.tipTracking')}</li>
