@@ -2,7 +2,7 @@ import { ExternalLink } from 'lucide-react';
 import { useId, useState } from 'react';
 import { HANDOFF_TARGETS, handOff, type HandoffInput } from '@/providers/handoff';
 import { t } from '../../shared/i18n';
-import { isMac } from '../../shared/open';
+import { platformIsMac } from '../../shared/open';
 import { usePanel, type SelectionSource } from '../store';
 import { workspacePrompt } from '@/core/workspace';
 
@@ -80,7 +80,7 @@ export function HandoffButtons({
     const input = handoffInput(instruction, contextUrl, selection, workspaceDocumentIds);
     const hasText = Boolean(input.page?.text);
     const { copied } = await handOff(target, input, includeText && hasText ? 'content' : 'link');
-    const paste = isMac() ? '⌘V' : 'Ctrl+V';
+    const paste = (await platformIsMac()) ? '⌘V' : 'Ctrl+V';
     showToast(
       copied
         ? t('handoff.copied', { target: target.label, paste })
